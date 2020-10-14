@@ -14,6 +14,7 @@ class LogSpiral:
         """
         self.xstart = xstart
         self.theta_start = 0
+        self.theta_end = None
         self.xend = xend
         self.psi = psi
         self.psi_rad = np.pi/180*psi
@@ -44,7 +45,7 @@ class LogSpiral:
         r = self.return_r(theta)
         x = np.cos(theta)*r
         y = np.sin(theta)*r
-        return x,y
+        return x, y
 
     def return_prelim_theta(self):
         """returns a close approx to the theta_end
@@ -73,6 +74,17 @@ class LogSpiral:
                 return x_n
             x_0 = x_n
         return None
+
+    def return_theta_range(self):
+        """return the range of theta
+
+        Returns:
+            tuple: theta_start, theta_end
+        """
+        if self.theta_end:
+            return self.theta_start, self.theta_end
+        self.update_theta_end()
+        return self.theta_start, self.theta_end
 
     def update_theta_end(self, max_iterations=10, precision=10**-5):
         """updates the classes theta_end parameter
@@ -151,6 +163,19 @@ class Intersection:
         return theta_prelim
 
     def return_precise_thetaint(self, max_iterations=10, precision=10**-5,p=False):
+        """returns a precise value for the intersection between the
+        log spir and the ray
+
+        Args:
+            max_iterations (int, optional): After how many tries
+            do we give up. Defaults to 10.
+            precision (float, optional): maximum difference between
+            consecutive theta values. Defaults to 10**-5.
+            p (bool, optional): plot the function which should be minimized. Defaults to False.
+
+        Returns:
+            float: theta value of intersection
+        """
         k = self.logspir.k
         m = self.line.m
         xstart = self.logspir.xstart
@@ -160,12 +185,84 @@ class Intersection:
         (np.cos(theta)*(1-k*m)+np.sin(theta)*(k+m))
 
         theta0 = self.return_prelim_theta_int()
-        fig,ax = plt.subplots(1)
-        theta_plot = np.linspace(0,theta0*2,100)
-        ax.plot(theta_plot, function(theta_plot))
+        #fig,ax = plt.subplots(1)
+        #theta_plot = np.linspace(0,theta0*2,100)
+        #ax.plot(theta_plot, function(theta_plot))
         for k in range(max_iterations):
             thetan = theta0 - function(theta0)/derivative(theta0)
             if abs(thetan-theta0) < precision:
                 return thetan
             theta0 = thetan
         return None
+
+    def return_scatter_coords(self):
+        """returns the carthesian coordinates of the intersection
+
+        Returns:
+            tuple: x_intersection, y_intersection
+        """
+        theta = self.return_precise_thetaint()
+        return self.logspir.return_cart_coords(theta)
+
+    def return_normal_vec(self,theta):
+        """returns the normal vector of the spiral at given theta,
+        relevant for the calculation of the reflection
+
+        Args:
+            theta (float): angle of intersection (deg)
+
+        Returns:
+            tuple: nx,ny x and y component of the normal vector
+        """
+        print('theta', theta*180/np.pi)
+        k = self.logspir.k
+        prefac = 1/(1 + k**2)**0.5
+        nx = (np.cos(theta)+k*np.sin(theta))*prefac
+        ny = (np.sin(theta)-k*np.cos(theta))*prefac
+        print('normal', nx, ny)
+        return nx, ny
+
+    def return_reflect_dir(self, theta, vx, vy):
+        """returns the direction of a ray reflected at theta
+
+        Args:
+            theta (float): angle of intersection
+            vx (float): x component of incoming velocity vector
+            vy (float): y component of incoming velocity vector
+
+        Returns:
+            tuple: 1, ry/rx; x and y component of reflected beam normalized to x = 1
+        """
+        nx, ny = self.return_normal_vec(theta)
+        #print('normalize', nx**2 + ny**2)
+        vtimesn = nx*vx + ny*vy
+        rx, ry = vx-2*vtimesn*nx, vy-2*vtimesn*ny
+        return 1, ry/rx
+
+    def plot_intersection(self):
+        """plots the situation and returns the fig,ax
+        """
+        fig,ax = plt.subplots(1)
+        int_theta = self.return_precise_thetaint()
+        x_int, y_int = self.logspir.return_cart_coords(int_theta, )
+        theta_range = self.logspir.return_theta_range()
+        theta_range = np.linspace(theta_range[0],theta_range[1],100)
+        ax.plot(*self.logspir.return_cart_coords(theta_range),\
+         linestyle='-', marker=' ', color='black', label='mirror')
+        ax.plot([0, x_int],[0, y_int], linestyle='-', marker=' ',\
+        color='darkgreen', label='incoming')
+        x_back = x_int*2
+        vx = 1
+        vy = self.line.m
+        print('incoming', vx, vy)
+        #show the normal as well for fixing kot
+        nx, ny = self.return_normal_vec(int_theta)
+        ny /= nx
+        nx = 1
+        ax.plot([x_int, x_int-0.5], [y_int, y_int -0.5*ny],\
+        linestyle='-', marker=' ')
+        rx, ry = self.return_reflect_dir(theta=int_theta, vx=vx, vy=vy)
+        print('reflected', rx, ry)
+        y_back = x_back*ry+y_int
+        ax.plot([x_int, x_back], [y_int, y_back], color='red', label='reflected')
+        return fig, ax
