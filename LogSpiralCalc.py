@@ -233,10 +233,12 @@ class Intersection:
         Returns:
             tuple: 1, ry/rx; x and y component of reflected beam normalized to x = 1
         """
+        print('before', vx**2 + vy**2)
         nx, ny = self.return_normal_vec(theta)
-        #print('normalize', nx**2 + ny**2)
+        print('normalize', nx**2 + ny**2)
         vtimesn = nx*vx + ny*vy
         rx, ry = vx-2*vtimesn*nx, vy-2*vtimesn*ny
+        print('after', rx**2 + ry**2)
         return 1, ry/rx
 
     def plot_intersection(self):
@@ -244,7 +246,11 @@ class Intersection:
         """
         fig,ax = plt.subplots(1)
         int_theta = self.return_precise_thetaint()
-        x_int, y_int = self.logspir.return_cart_coords(int_theta, )
+        #test if we hit
+        if int_theta < 0 or int_theta > self.logspir.theta_end:
+            print('shitty no')
+            return None
+        x_int, y_int = self.logspir.return_cart_coords(int_theta)
         theta_range = self.logspir.return_theta_range()
         theta_range = np.linspace(theta_range[0],theta_range[1],100)
         ax.plot(*self.logspir.return_cart_coords(theta_range),\
@@ -263,6 +269,42 @@ class Intersection:
         linestyle='-', marker=' ')
         rx, ry = self.return_reflect_dir(theta=int_theta, vx=vx, vy=vy)
         print('reflected', rx, ry)
-        y_back = x_back*ry+y_int
+        y_back = y_int + (x_back-x_int)*ry
         ax.plot([x_int, x_back], [y_int, y_back], color='red', label='reflected')
         return fig, ax
+
+class RotateLine:
+    """class that rotates a line around a Point
+    """
+    def __init__(self, line: Line2D, angle: float, x=0, y=0):
+        """initialize a RotateLine object
+
+        Args:
+            line (Line2D): the line to rotate
+            angle (float): angle of rotation (deg)
+            x (int, optional): x-Value of point of rotation. Defaults to 0.
+            y (int, optional): y-Value of point of rotation. Defaults to 0.
+        """
+        self.line = line
+        self.x = x
+        self.y = y
+        self.angle = angle*np.pi/180
+        self.m = self.line.m
+        self.y0 = self.line.y0
+
+
+    def return_turned_line(self):
+
+        theta = self.angle
+        sin = np.sin(theta)
+        cos = np.cos(theta)
+        vx = 1
+        vy = self.line.m
+        rot_vx = vx*cos - vy*sin
+        rot_vy = vx*sin + vy*cos
+        rot_vy /= rot_vx
+        rot_vx = 1
+        rot_m = rot_vy
+        rot_y0 = self.y0*(cos + sin*rot_m)
+        return rot_m, rot_y0
+
