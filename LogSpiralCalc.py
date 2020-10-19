@@ -106,7 +106,7 @@ class LogSpiral:
             fig,ax = plt.subplots(1)
             ax.plot([xstart, xend], [ystart, yend], linestyle='-', marker=' ')
             theta_range = np.linspace(0, self.theta_end, 10)
-            print(self.return_cart_coords(theta_range))
+            #print(self.return_cart_coords(theta_range))
             ax.plot(*self.return_cart_coords(theta_range), linestyle='-', marker=' ')
             xlim = ax.get_xlim()
             ax.set_xlim(0,xlim[1])
@@ -119,15 +119,44 @@ class LogSpiral:
         return m,y0
 
 class Line2D:
+    """quick class for 2D line objects
+    """
     def __init__(self, m, y0):
+        """init line with m and y0 according to y = y0 + m*x
+
+        Args:
+            m (float): slope of the line
+            y0 (float): y intersection of the line
+        """
         self.m = m
         self.y0 = y0
+
+    def return_turned_line(self, theta: float):
+        """returns the slope and intersection of the turned line
+
+        Args:
+            theta (float): angle of turning (deg)
+
+        Returns:
+            tuple: (m, y0) tuple of slope and intersection
+        """
+        theta *= np.pi/180
+        sin = np.sin(theta)
+        cos = np.cos(theta)
+        m = self.line.m
+        rot_m = (sin + cos * m)/(cos - sin * m)
+        rot_y0 = self.y0*(cos + sin*rot_m)
+        return rot_m, rot_y0
+
+    def rotate_line(self, theta: float):
+        self.m, self.y0 = self.return_turned_line(theta)
+
 
 class Intersection:
     """class to determine the intersection of a line and
     a logarithmic spiral
     """
-    def __init__(self, logspir, line):
+    def __init__(self, logspir: LogSpiral, line: Line2D):
         """initialize the intersection with a line and logspir
 
         Args:
@@ -180,19 +209,37 @@ class Intersection:
         m = self.line.m
         xstart = self.logspir.xstart
         y0 = self.line.y0
-        function = lambda theta: np.exp(k*theta)*(np.sin(theta) - m*np.cos(theta))-y0/xstart
-        derivative = lambda theta: np.exp(k*theta)*\
-        (np.cos(theta)*(1-k*m)+np.sin(theta)*(k+m))
+        def function(theta):
+            return np.exp(k*theta)*(np.sin(theta) - m*np.cos(theta))-y0/xstart
+        def derivative(theta):
+            return np.exp(k*theta)*\
+                    (np.cos(theta)*(1-k*m)+np.sin(theta)*(k+m))
 
         theta0 = self.return_prelim_theta_int()
-        #fig,ax = plt.subplots(1)
-        #theta_plot = np.linspace(0,theta0*2,100)
-        #ax.plot(theta_plot, function(theta_plot))
-        for k in range(max_iterations):
+        #print('thta int', theta0)
+        if p:
+            fig,ax = plt.subplots(1)
+            theta_plot = np.linspace(0,self.logspir.theta_end*2,100000)
+            ax.plot(theta_plot, function(theta_plot), linestyle='-', marker=' ')
+            ax.plot(theta0, function(theta0))
+            ax.plot([theta_plot[0], theta_plot[-1]],[0,0], marker=' ')
+
+        #print('change', theta0-function(theta0)/derivative(theta0))
+        #print('thetha', theta0)
+        #print('function',function(theta0))
+        for gammerios in range(max_iterations):
+            #print(gammerios,theta0)
+            #print('functionafter', function(theta0))
+            #print('change', theta0-function(theta0)/derivative(theta0))
             thetan = theta0 - function(theta0)/derivative(theta0)
+            #print('thetha n',thetan)
+            if p:
+                ax.plot(theta_plot, derivative(theta0)*(theta_plot-theta0)+function(theta0), linestyle='-', marker=' ')
+                ax.plot(thetan,function(thetan))
             if abs(thetan-theta0) < precision:
                 return thetan
             theta0 = thetan
+
         return None
 
     def return_scatter_coords(self):
@@ -214,12 +261,12 @@ class Intersection:
         Returns:
             tuple: nx,ny x and y component of the normal vector
         """
-        print('theta', theta*180/np.pi)
+        #print('theta', theta*180/np.pi)
         k = self.logspir.k
         prefac = 1/(1 + k**2)**0.5
         nx = (np.cos(theta)+k*np.sin(theta))*prefac
         ny = (np.sin(theta)-k*np.cos(theta))*prefac
-        print('normal', nx, ny)
+        #print('normal', nx, ny)
         return nx, ny
 
     def return_reflect_dir(self, theta, vx, vy):
@@ -233,34 +280,45 @@ class Intersection:
         Returns:
             tuple: 1, ry/rx; x and y component of reflected beam normalized to x = 1
         """
-        print('before', vx**2 + vy**2)
+        #print('before', vx**2 + vy**2)
         nx, ny = self.return_normal_vec(theta)
-        print('normalize', nx**2 + ny**2)
+        #print('normalize', nx**2 + ny**2)
         vtimesn = nx*vx + ny*vy
+        #print('leftscalar', vtimesn/((nx*nx+ny*ny)*(vx*vx+vy*vy))**0.5)
+
         rx, ry = vx-2*vtimesn*nx, vy-2*vtimesn*ny
-        print('after', rx**2 + ry**2)
+        #print('rightscalar', (rx*nx+ry*ny)/((nx*nx+ny*ny)*(rx*rx+ry*ry)**0.5))
+        #print('after', rx**2 + ry**2)
         return 1, ry/rx
 
     def plot_intersection(self):
         """plots the situation and returns the fig,ax
         """
-        fig,ax = plt.subplots(1)
+
         int_theta = self.return_precise_thetaint()
         #test if we hit
         if int_theta < 0 or int_theta > self.logspir.theta_end:
-            print('shitty no')
-            return None
+            #print('shitty no')
+            fig,ax = plt.subplots(1)
+            theta_range = self.logspir.return_theta_range()
+            theta_range = np.linspace(theta_range[0],theta_range[1],100)
+            ax.plot(*self.logspir.return_cart_coords(theta_range),\
+             linestyle='-', marker=' ', color='black', label='mirror')
+            ax.plot([0, self.logspir.xend],[self.line.y0, self.line.y0 + self.logspir.xend*self.line.m], linestyle='-', marker=' ',\
+            color='darkgreen', label='incoming')
+            return fig,ax
+        fig,ax = plt.subplots(1)
         x_int, y_int = self.logspir.return_cart_coords(int_theta)
         theta_range = self.logspir.return_theta_range()
         theta_range = np.linspace(theta_range[0],theta_range[1],100)
         ax.plot(*self.logspir.return_cart_coords(theta_range),\
          linestyle='-', marker=' ', color='black', label='mirror')
-        ax.plot([0, x_int],[0, y_int], linestyle='-', marker=' ',\
+        ax.plot([0, x_int],[self.line.y0, y_int], linestyle='-', marker=' ',\
         color='darkgreen', label='incoming')
         x_back = x_int*2
         vx = 1
         vy = self.line.m
-        print('incoming', vx, vy)
+        #print('incoming', vx, vy)
         #show the normal as well for fixing kot
         nx, ny = self.return_normal_vec(int_theta)
         ny /= nx
@@ -268,43 +326,8 @@ class Intersection:
         ax.plot([x_int, x_int-0.5], [y_int, y_int -0.5*ny],\
         linestyle='-', marker=' ')
         rx, ry = self.return_reflect_dir(theta=int_theta, vx=vx, vy=vy)
-        print('reflected', rx, ry)
+        #print('reflected', rx, ry)
         y_back = y_int + (x_back-x_int)*ry
         ax.plot([x_int, x_back], [y_int, y_back], color='red', label='reflected')
         return fig, ax
-
-class RotateLine:
-    """class that rotates a line around a Point
-    """
-    def __init__(self, line: Line2D, angle: float, x=0, y=0):
-        """initialize a RotateLine object
-
-        Args:
-            line (Line2D): the line to rotate
-            angle (float): angle of rotation (deg)
-            x (int, optional): x-Value of point of rotation. Defaults to 0.
-            y (int, optional): y-Value of point of rotation. Defaults to 0.
-        """
-        self.line = line
-        self.x = x
-        self.y = y
-        self.angle = angle*np.pi/180
-        self.m = self.line.m
-        self.y0 = self.line.y0
-
-
-    def return_turned_line(self):
-
-        theta = self.angle
-        sin = np.sin(theta)
-        cos = np.cos(theta)
-        vx = 1
-        vy = self.line.m
-        rot_vx = vx*cos - vy*sin
-        rot_vy = vx*sin + vy*cos
-        rot_vy /= rot_vx
-        rot_vx = 1
-        rot_m = rot_vy
-        rot_y0 = self.y0*(cos + sin*rot_m)
-        return rot_m, rot_y0
 
