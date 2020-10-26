@@ -119,6 +119,19 @@ class LogSpiral:
             ax.plot([0,xend],[y(0),y(xend)])
         return m,y0
 
+    def plot_log_spir(self):
+        theta_rot = self.return_precise_theta()
+        fig, ax = plt.subplots(1)
+        theta_range = np.linspace(0, theta_rot, 101)
+        for branch in range(self.branches):
+            sin = np.sin(theta_rot*branch)
+            cos = np.cos(theta_rot*branch)
+            x, y = self.return_cart_coords(theta_range)
+            x, y = cos*x - sin*y, sin*x + cos*y
+            ax.plot(x, y, linestyle='-', marker=' ', color='black')
+            ax.plot([0,x[-1]], [0, y[-1]], linestyle='-', marker=' ')
+        return fig, ax
+
 class Line2D:
     """quick class for 2D line objects
     """
