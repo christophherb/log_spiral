@@ -155,7 +155,7 @@ class Line2D:
         Args:
             theta (float): angle of rotation (deg)
         """
-        self.m, self.y0 = self.return_turned_line(theta)
+        self.m, self.y0 = self.return_rotated_line(theta)
 
 
 class Intersection:
@@ -197,7 +197,7 @@ class Intersection:
         theta_prelim = np.log(r_intersection/self.logspir.xstart)/self.logspir.k
         return theta_prelim
 
-    def return_precise_thetaint(self, max_iterations=10, precision=10**-5,p=False):
+    def return_precise_thetaint(self, max_iterations=10, precision=10**-5,p=True):
         """returns a precise value for the intersection between the
         log spir and the ray using newton approx
 
@@ -293,7 +293,6 @@ class Intersection:
         """
         int_theta = self.return_precise_thetaint()
         if int_theta < 0 or int_theta > self.logspir.theta_end:
-            #print('shitty no')
             fig,ax = plt.subplots(1)
             theta_range = self.logspir.return_theta_range()
             theta_range = np.linspace(theta_range[0],theta_range[1],100)
