@@ -4,18 +4,20 @@ import matplotlib.pyplot as plt
 class LogSpiral:
     """Allow to calculates parameters for a Log Spiral with two parameters
     """
-    def __init__(self, xstart: float, xend: float, psi: float):
+    def __init__(self, xstart: float, xend: float, psi: float, branches: int):
         """initializes the logarithmic mirror
 
         Args:
             xstart (float): where the logspiral cuts the x axis
             xend (float): at which x value the log spiral shall end, important for the linear approx
             psi (float): the angle at which the spiral cuts the xaxis
+            branches (int): how many identical branches should the log spiral comprise
         """
         self.xstart = xstart
+        self.xend = xend
         self.theta_start = 0
         self.theta_end = None
-        self.xend = xend
+        self.branches = branches
         self.psi = psi
         self.psi_rad = np.pi/180*psi
         self.k = 1/np.tan(self.psi_rad)
@@ -67,9 +69,8 @@ class LogSpiral:
             float: theta_end such that the x coord approximates xend
         """
         x_0 = self.return_prelim_theta()
-        for k in range(max_iterations):
+        for _ in range(max_iterations):
             x_n = x_0 - self.function(x_0)/self.derivative(x_0)
-
             if abs(x_0-x_n) < precision:
                 return x_n
             x_0 = x_n
@@ -100,10 +101,13 @@ class LogSpiral:
         """
         xstart = self.xstart
         ystart = 0
-        self.theta_end = self.return_precise_theta(precision=10**-7)
+        if self.theta_end == None:
+            self.update_theta_end()
         xend,yend = self.return_cart_coords(self.theta_end)
+        m = (yend-ystart)/(xend-xstart)
+        y0 = yend - m*xend
         if plot:
-            fig,ax = plt.subplots(1)
+            _,ax = plt.subplots(1)
             ax.plot([xstart, xend], [ystart, yend], linestyle='-', marker=' ')
             theta_range = np.linspace(0, self.theta_end, 10)
             #print(self.return_cart_coords(theta_range))
@@ -111,9 +115,6 @@ class LogSpiral:
             xlim = ax.get_xlim()
             ax.set_xlim(0,xlim[1])
             ax.set_aspect('equal')
-        m = (yend-ystart)/(xend-xstart)
-        y0 = yend - m*xend
-        if plot:
             y = lambda x: x*m +y0
             ax.plot([0,xend],[y(0),y(xend)])
         return m,y0
@@ -131,24 +132,29 @@ class Line2D:
         self.m = m
         self.y0 = y0
 
-    def return_turned_line(self, theta: float):
+    def return_rotated_line(self, theta: float):
         """returns the slope and intersection of the turned line
 
         Args:
             theta (float): angle of turning (deg)
 
         Returns:
-            tuple: (m, y0) tuple of slope and intersection
+            tuple: (m, y0) tuple of slope and intersection of the turned line
         """
         theta *= np.pi/180
         sin = np.sin(theta)
         cos = np.cos(theta)
-        m = self.line.m
+        m = self.m
         rot_m = (sin + cos * m)/(cos - sin * m)
         rot_y0 = self.y0*(cos + sin*rot_m)
         return rot_m, rot_y0
 
     def rotate_line(self, theta: float):
+        """rotates the line around the origin by an angle theta
+
+        Args:
+            theta (float): angle of rotation (deg)
+        """
         self.m, self.y0 = self.return_turned_line(theta)
 
 
@@ -193,7 +199,7 @@ class Intersection:
 
     def return_precise_thetaint(self, max_iterations=10, precision=10**-5,p=False):
         """returns a precise value for the intersection between the
-        log spir and the ray
+        log spir and the ray using newton approx
 
         Args:
             max_iterations (int, optional): After how many tries
@@ -209,37 +215,29 @@ class Intersection:
         m = self.line.m
         xstart = self.logspir.xstart
         y0 = self.line.y0
+
         def function(theta):
             return np.exp(k*theta)*(np.sin(theta) - m*np.cos(theta))-y0/xstart
+
         def derivative(theta):
             return np.exp(k*theta)*\
                     (np.cos(theta)*(1-k*m)+np.sin(theta)*(k+m))
 
         theta0 = self.return_prelim_theta_int()
-        #print('thta int', theta0)
         if p:
-            fig,ax = plt.subplots(1)
+            _,ax = plt.subplots(1)
             theta_plot = np.linspace(0,self.logspir.theta_end*2,100000)
             ax.plot(theta_plot, function(theta_plot), linestyle='-', marker=' ')
             ax.plot(theta0, function(theta0))
             ax.plot([theta_plot[0], theta_plot[-1]],[0,0], marker=' ')
-
-        #print('change', theta0-function(theta0)/derivative(theta0))
-        #print('thetha', theta0)
-        #print('function',function(theta0))
-        for gammerios in range(max_iterations):
-            #print(gammerios,theta0)
-            #print('functionafter', function(theta0))
-            #print('change', theta0-function(theta0)/derivative(theta0))
+        for _ in range(max_iterations):
             thetan = theta0 - function(theta0)/derivative(theta0)
-            #print('thetha n',thetan)
             if p:
                 ax.plot(theta_plot, derivative(theta0)*(theta_plot-theta0)+function(theta0), linestyle='-', marker=' ')
                 ax.plot(thetan,function(thetan))
             if abs(thetan-theta0) < precision:
                 return thetan
             theta0 = thetan
-
         return None
 
     def return_scatter_coords(self):
@@ -285,7 +283,6 @@ class Intersection:
         #print('normalize', nx**2 + ny**2)
         vtimesn = nx*vx + ny*vy
         #print('leftscalar', vtimesn/((nx*nx+ny*ny)*(vx*vx+vy*vy))**0.5)
-
         rx, ry = vx-2*vtimesn*nx, vy-2*vtimesn*ny
         #print('rightscalar', (rx*nx+ry*ny)/((nx*nx+ny*ny)*(rx*rx+ry*ry)**0.5))
         #print('after', rx**2 + ry**2)
@@ -294,9 +291,7 @@ class Intersection:
     def plot_intersection(self):
         """plots the situation and returns the fig,ax
         """
-
         int_theta = self.return_precise_thetaint()
-        #test if we hit
         if int_theta < 0 or int_theta > self.logspir.theta_end:
             #print('shitty no')
             fig,ax = plt.subplots(1)
