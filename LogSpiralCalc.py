@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 class LogSpiral:
     """Allow to calculates parameters for a Log Spiral with two parameters
     """
-    def __init__(self, xstart: float, xend: float, psi: float, branches: int):
+    def __init__(self, xstart: float, xend: float, psi: float, theta_range: float):
         """initializes the logarithmic mirror
 
         Args:
@@ -16,13 +16,14 @@ class LogSpiral:
         self.xstart = xstart
         self.xend = xend
         self.theta_start = 0
-        self.theta_end = None
-        self.branches = branches
         self.psi = psi
         self.psi_rad = np.pi/180*psi
         self.k = 1/np.tan(self.psi_rad)
+        #function and derivative are used to find the angle theta at which the x_value of the spiral equals xend
         self.function = lambda theta: np.cos(theta)*self.xstart*np.exp(self.k*theta)-self.xend
         self.derivative = lambda theta: self.xstart*np.exp(self.k*theta)*(np.cos(theta)*self.k-np.sin(theta))
+        self.theta_end = self.return_precise_theta()
+        self.branches = int(theta_range/180*np.pi/self.theta_end) + 1
 
     def return_r(self, theta):
         """returns the distance of the spiral at a given angle theta according to r(theta) = xstart*exp(k*theta_rad)
@@ -50,7 +51,7 @@ class LogSpiral:
         return x, y
 
     def return_prelim_theta(self):
-        """returns a close approx to the theta_end
+        """returns a close approx to the theta_end given a specific xend
 
         Returns:
             float: theta_end approximation
@@ -96,14 +97,20 @@ class LogSpiral:
         """
         self.theta_end = self.return_precise_theta(max_iterations=max_iterations, precision=precision)
 
-    def return_equiv_line(self, plot=False):
-        """returns an approximation of the mirror segment between theta_start and theta_end by a line
+    def return_equiv_vector(self, plot=False):
+        """returns the line approximating the spiral
+
+        Args:
+            plot (bool, optional): Whether to plot the resulting equivalent line. Defaults to False.
+
+        Returns:
+            tuple: ((x0, y0), (xdir, ydir)) 
         """
         xstart = self.xstart
         ystart = 0
         if self.theta_end == None:
             self.update_theta_end()
-        xend,yend = self.return_cart_coords(self.theta_end)
+        xend, yend = self.return_cart_coords(self.theta_end)
         m = (yend-ystart)/(xend-xstart)
         y0 = yend - m*xend
         if plot:
@@ -117,9 +124,14 @@ class LogSpiral:
             ax.set_aspect('equal')
             y = lambda x: x*m +y0
             ax.plot([0,xend],[y(0),y(xend)])
-        return m,y0
+        return ((x0, y0), (1, m))
 
     def plot_log_spir(self):
+        """plots all log spirals in the branch and returns the figure and axis
+
+        Returns:
+            tuple: (fig, ax)
+        """
         theta_rot = self.return_precise_theta()
         fig, ax = plt.subplots(1)
         theta_range = np.linspace(0, theta_rot, 101)
@@ -135,15 +147,28 @@ class LogSpiral:
 class Line2D:
     """quick class for 2D line objects
     """
-    def __init__(self, m, y0):
+    def __init__(self, x0, y0, xdir, ydir):
         """init line with m and y0 according to y = y0 + m*x
 
         Args:
             m (float): slope of the line
             y0 (float): y intersection of the line
         """
-        self.m = m
+        self.x0 = x0
         self.y0 = y0
+        self.xdir = xdir
+        self.ydir = ydir
+
+    def return_coords(self, t: float):
+        """return x and y for a given t
+
+        Args:
+            x (float): x value at which to evaluate
+
+        Returns:
+            tuple: (x, y)
+        """
+        return x, self.m*x + self.y0
 
     def return_rotated_line(self, theta: float):
         """returns the slope and intersection of the turned line
@@ -195,7 +220,9 @@ class Intersection:
         log_m, log_y0 = self.logspir.return_equiv_line()
         line_m, line_y0 = self.line.m, self.line.y0
         x_intersection = (log_y0-line_y0)/(line_m-log_m)
-        return x_intersection
+        if self.logspir.xstart < x_intersection < self.logspir.xend:
+            return x_intersection
+        return None
 
     def return_prelim_theta_int(self):
         """returns the theta calculated from the line approximation
@@ -205,10 +232,13 @@ class Intersection:
             float: theta_intersection (rad)
         """
         x_intersection = self.return_prelim_x()
-        y_intersection = self.line.m*x_intersection + self.line.y0
-        r_intersection = (x_intersection**2 + y_intersection**2)**0.5
-        theta_prelim = np.log(r_intersection/self.logspir.xstart)/self.logspir.k
-        return theta_prelim
+        if x_intersection:
+            y_intersection = self.line.m*x_intersection + self.line.y0
+            r_intersection = (x_intersection**2 + y_intersection**2)**0.5
+            theta_prelim = np.log(r_intersection/self.logspir.xstart)\
+                /self.logspir.k
+            return theta_prelim
+        return None
 
     def return_precise_thetaint(self, max_iterations=10, precision=10**-5,p=True):
         """returns a precise value for the intersection between the
@@ -237,6 +267,8 @@ class Intersection:
                     (np.cos(theta)*(1-k*m)+np.sin(theta)*(k+m))
 
         theta0 = self.return_prelim_theta_int()
+        if theta0 is None:
+            return None
         if p:
             _,ax = plt.subplots(1)
             theta_plot = np.linspace(0,self.logspir.theta_end*2,100000)
@@ -260,6 +292,8 @@ class Intersection:
             tuple: x_intersection, y_intersection
         """
         theta = self.return_precise_thetaint()
+        if theta is None:
+            return None
         return self.logspir.return_cart_coords(theta)
 
     def return_normal_vec(self,theta):
@@ -301,11 +335,35 @@ class Intersection:
         #print('after', rx**2 + ry**2)
         return 1, ry/rx
 
+    def return_all_branches(self):
+        """tries to intersect all possible spirals with the neutron
+
+        Returns:
+            list: list of 
+        """
+        line = self.line
+        logspir = self.logspir
+        theta_rot = logspir.theta_end
+        intersects = []
+        for branch in range(logspir.branches):
+            sin = np.sin(theta_rot*branch)
+            cos = np.cos(theta_rot*branch)
+
+            line.rotate_line(-theta_rot*180/np.pi)
+            print('m0, y0', line.m, line.y0)
+            try:
+                x_int, y_int = self.return_scatter_coords()
+                x_int, y_int = cos*x_int - sin*y_int, sin*x_int + cos*y_int
+                intersects.append((x_int, y_int))
+            except TypeError:
+                print('no can do ', branch)
+        return intersects
+
     def plot_intersection(self):
         """plots the situation and returns the fig,ax
         """
         int_theta = self.return_precise_thetaint()
-        if int_theta < 0 or int_theta > self.logspir.theta_end:
+        if int_theta is None:
             fig,ax = plt.subplots(1)
             theta_range = self.logspir.return_theta_range()
             theta_range = np.linspace(theta_range[0],theta_range[1],100)
