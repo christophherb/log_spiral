@@ -233,7 +233,7 @@ class Intersection:
                 x_intersection = log_x0 + log_xdir*lam
             except ZeroDivisionError:
                 x_intersection = None
-        if self.logspir.xstart < x_intersection < self.logspir.xend:
+        if x_intersection and (self.logspir.xstart < x_intersection < self.logspir.xend):
             return x_intersection
         return None
 
@@ -246,7 +246,7 @@ class Intersection:
         """
         x_intersection = self.return_prelim_x()
         if x_intersection:
-            y_intersection = self.line.m*x_intersection + self.line.y0
+            y_intersection = self.line.ydir*(x_intersection - self.line.x0)/self.line.xdir + self.line.y0
             r_intersection = (x_intersection**2 + y_intersection**2)**0.5
             theta_prelim = np.log(r_intersection/self.logspir.xstart)\
                 /self.logspir.k
@@ -268,9 +268,9 @@ class Intersection:
             float: theta value of intersection
         """
         k = self.logspir.k
-        m = self.line.m
+        m = self.line.ydir/self.line.xdir
         xstart = self.logspir.xstart
-        y0 = self.line.y0
+        y0 = self.line.y0+(0-self.line.x0)/self.line.xdir*self.line.ydir
 
         def function(theta):
             return np.exp(k*theta)*(np.sin(theta) - m*np.cos(theta))-y0/xstart
@@ -346,7 +346,7 @@ class Intersection:
         rx, ry = vx-2*vtimesn*nx, vy-2*vtimesn*ny
         #print('rightscalar', (rx*nx+ry*ny)/((nx*nx+ny*ny)*(rx*rx+ry*ry)**0.5))
         #print('after', rx**2 + ry**2)
-        return 1, ry/rx
+        return rx, ry
 
     def return_all_branches(self):
         """tries to intersect all possible spirals with the neutron
