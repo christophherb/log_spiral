@@ -104,7 +104,7 @@ class LogSpiral:
             plot (bool, optional): Whether to plot the resulting equivalent line. Defaults to False.
 
         Returns:
-            tuple: ((x0, y0), (xdir, ydir)) 
+            tuple: (x0, y0, xdir, ydir) 
         """
         xstart = self.xstart
         ystart = 0
@@ -163,12 +163,12 @@ class Line2D:
         """return x and y for a given t
 
         Args:
-            x (float): x value at which to evaluate
+            t (float): t value at which to evaluate
 
         Returns:
             tuple: (x, y)
         """
-        return x, self.m*x + self.y0
+        return self.x0 + self.xdir*t, self.y0 + self.ydir*t
 
     def return_rotated_line(self, theta: float):
         """returns the slope and intersection of the turned line
@@ -182,10 +182,13 @@ class Line2D:
         theta *= np.pi/180
         sin = np.sin(theta)
         cos = np.cos(theta)
-        m = self.m
-        rot_m = (sin + cos * m)/(cos - sin * m)
-        rot_y0 = self.y0*(cos + sin*rot_m)
-        return rot_m, rot_y0
+        rot_x0 = cos*self.x0 - sin*self.y0
+        rot_y0 = sin*self.x0 + cos*self.y0
+        rot_xdir = cos*self.xdir - sin*self.ydir
+        rot_ydir = sin*self.xdir + sin*self.ydir
+        #rot_m = (sin + cos * m)/(cos - sin * m)
+        #rot_y0 = self.y0*(cos + sin*rot_m)
+        return rot_x0, rot_y0, rot_xdir, rot_ydir
 
     def rotate_line(self, theta: float):
         """rotates the line around the origin by an angle theta
@@ -193,7 +196,7 @@ class Line2D:
         Args:
             theta (float): angle of rotation (deg)
         """
-        self.m, self.y0 = self.return_rotated_line(theta)
+        self.x0, self.y0, self.xdir, self.ydir = self.return_rotated_line(theta)
 
 
 class Intersection:
@@ -217,8 +220,8 @@ class Intersection:
         Returns:
             float: x_intersection
         """
-        log_m, log_y0 = self.logspir.return_equiv_line()
-        line_m, line_y0 = self.line.m, self.line.y0
+        log_x0, log_y0, log_xdir, log_ydir = self.logspir.return_equiv_line()
+        line_x0, line_y0, line_xdir, line_ydir = self.line.x0, self.line.y0, self.line.xdir, self.line.ydir
         x_intersection = (log_y0-line_y0)/(line_m-log_m)
         if self.logspir.xstart < x_intersection < self.logspir.xend:
             return x_intersection
