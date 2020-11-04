@@ -222,7 +222,17 @@ class Intersection:
         """
         log_x0, log_y0, log_xdir, log_ydir = self.logspir.return_equiv_line()
         line_x0, line_y0, line_xdir, line_ydir = self.line.x0, self.line.y0, self.line.xdir, self.line.ydir
-        x_intersection = (log_y0-line_y0)/(line_m-log_m)
+        try:
+            t = (log_ydir*(line_x0-log_x0) + log_xdir*(log_y0-line_y0))/\
+                (log_xdir*line_ydir - line_xdir*log_ydir)
+            x_intersection = line_x0 + line_xdir*t
+        except ZeroDivisionError:
+            try:
+                lam = (line_xdir*(line_y0-log_y0) + line_ydir*(log_x0-line_x0))/\
+                    (log_ydir*line_xdir - log_xdir*line_ydir)
+                x_intersection = log_x0 + log_xdir*lam
+            except ZeroDivisionError:
+                x_intersection = None
         if self.logspir.xstart < x_intersection < self.logspir.xend:
             return x_intersection
         return None
