@@ -148,11 +148,13 @@ class Line2D:
     """quick class for 2D line objects
     """
     def __init__(self, x0, y0, xdir, ydir):
-        """init line with m and y0 according to y = y0 + m*x
+        """init line with m and y0 according to X = X0 + t*X_dir where large X is 2D vector
 
         Args:
-            m (float): slope of the line
-            y0 (float): y intersection of the line
+            x0 (float): x value of point on the line
+            y0 (float): y value of point on the line
+            xdir (float): x direction of line
+            ydir (float): y direction of line
         """
         self.x0 = x0
         self.y0 = y0
@@ -163,7 +165,7 @@ class Line2D:
         """return x and y for a given t
 
         Args:
-            t (float): t value at which to evaluate
+            t (float): t value at which to evaluate X0 + X_dir*t
 
         Returns:
             tuple: (x, y)
@@ -354,22 +356,27 @@ class Intersection:
         Returns:
             list: list of 
         """
-        line = self.line
         logspir = self.logspir
         theta_rot = logspir.theta_end
         intersects = []
+        fix_line = Line2D(self.line.x0, self.line.y0, self.line.xdir, self.line.ydir)
+        hit = False
         for branch in range(logspir.branches):
             sin = np.sin(theta_rot*branch)
             cos = np.cos(theta_rot*branch)
-
-            line.rotate_line(-theta_rot*180/np.pi)
-            print('m0, y0', line.m, line.y0)
+            self.line.x0, self.line.y0, self.line.xdir, self.line.ydir \
+                = fix_line.return_rotated_line(-branch*theta_rot*180/np.pi)
+            print('rotated line', self.line.x0, self.line.y0, self.line.xdir, self.line.ydir)
             try:
                 x_int, y_int = self.return_scatter_coords()
                 x_int, y_int = cos*x_int - sin*y_int, sin*x_int + cos*y_int
                 intersects.append((x_int, y_int))
+                hit = True
             except TypeError:
                 print('no can do ', branch)
+                if hit==True:
+                    break
+        self.line = fix_line
         return intersects
 
     def plot_intersection(self):
