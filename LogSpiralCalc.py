@@ -112,7 +112,7 @@ class LogSpiral:
             self.update_theta_end()
         xend, yend = self.return_cart_coords(self.theta_end)
         m = (yend-ystart)/(xend-xstart)
-        y0 = yend - m*xend
+        #y0 = yend - m*xend
         if plot:
             _,ax = plt.subplots(1)
             ax.plot([xstart, xend], [ystart, yend], linestyle='-', marker=' ')
@@ -124,7 +124,7 @@ class LogSpiral:
             ax.set_aspect('equal')
             y = lambda x: x*m +y0
             ax.plot([0,xend],[y(0),y(xend)])
-        return ((x0, y0), (1, m))
+        return (xstart, ystart, 1, m)
 
     def plot_log_spir(self):
         """plots all log spirals in the branch and returns the figure and axis
@@ -220,8 +220,9 @@ class Intersection:
         Returns:
             float: x_intersection
         """
-        log_x0, log_y0, log_xdir, log_ydir = self.logspir.return_equiv_line()
+        log_x0, log_y0, log_xdir, log_ydir = self.logspir.return_equiv_vector()
         line_x0, line_y0, line_xdir, line_ydir = self.line.x0, self.line.y0, self.line.xdir, self.line.ydir
+        #find solutions to the equation line0 + linedir*t == log0 + logdir*lam and finally check if the x value makes sense
         try:
             t = (log_ydir*(line_x0-log_x0) + log_xdir*(log_y0-line_y0))/\
                 (log_xdir*line_ydir - line_xdir*log_ydir)
@@ -268,14 +269,15 @@ class Intersection:
             float: theta value of intersection
         """
         k = self.logspir.k
+        #transform linevector to m*x + y0
         m = self.line.ydir/self.line.xdir
         xstart = self.logspir.xstart
-        y0 = self.line.y0+(0-self.line.x0)/self.line.xdir*self.line.ydir
+        y0 = self.line.y0+(0-self.line.x0)/self.line.xdir*self.line.ydir#intersection with y-axis
 
-        def function(theta):
+        def function(theta):#line intersects spiral where function(theta) = 0 
             return np.exp(k*theta)*(np.sin(theta) - m*np.cos(theta))-y0/xstart
 
-        def derivative(theta):
+        def derivative(theta):#theta derivative of the above function for newton iterations
             return np.exp(k*theta)*\
                     (np.cos(theta)*(1-k*m)+np.sin(theta)*(k+m))
 
@@ -285,14 +287,15 @@ class Intersection:
         if p:
             _,ax = plt.subplots(1)
             theta_plot = np.linspace(0,self.logspir.theta_end*2,100000)
-            ax.plot(theta_plot, function(theta_plot), linestyle='-', marker=' ')
-            ax.plot(theta0, function(theta0))
-            ax.plot([theta_plot[0], theta_plot[-1]],[0,0], marker=' ')
+            ax.plot(theta_plot, function(theta_plot), linestyle='-', marker=' ', color='red')
+            ax.plot([theta0], [function(theta0)], marker='s', color='orange')
+            ax.plot([theta_plot[0], theta_plot[-1]],[0,0], marker=' ', color='green')
+            ax.plot(theta_plot, derivative(theta0)*(theta_plot-theta0)+function(theta0), color='blue')
         for _ in range(max_iterations):
             thetan = theta0 - function(theta0)/derivative(theta0)
             if p:
-                ax.plot(theta_plot, derivative(theta0)*(theta_plot-theta0)+function(theta0), linestyle='-', marker=' ')
-                ax.plot(thetan,function(thetan))
+                ax.plot(theta_plot, derivative(thetan)*(theta_plot-thetan)+function(thetan), linestyle='-', marker=' ', color='blue')
+                ax.plot([thetan], [function(thetan)], marker='s', color='orange')
             if abs(thetan-theta0) < precision:
                 return thetan
             theta0 = thetan
@@ -309,7 +312,7 @@ class Intersection:
             return None
         return self.logspir.return_cart_coords(theta)
 
-    def return_normal_vec(self,theta):
+    def return_normal_vec(self, theta):
         """returns the normal vector of the spiral at given theta,
         relevant for the calculation of the reflection
 
@@ -321,34 +324,32 @@ class Intersection:
         """
         #print('theta', theta*180/np.pi)
         k = self.logspir.k
-        prefac = 1/(1 + k**2)**0.5
-        nx = (np.cos(theta)+k*np.sin(theta))*prefac
-        ny = (np.sin(theta)-k*np.cos(theta))*prefac
+        norm_prefac = 1/(1 + k**2)**0.5
+        nx = (np.cos(theta)+k*np.sin(theta))*norm_prefac
+        ny = (np.sin(theta)-k*np.cos(theta))*norm_prefac
         return nx, ny
 
-    def return_reflect_dir(self, theta, vx, vy):
+    def return_reflect_dir(self, theta, xdir, ydir):
         """returns the direction of a ray reflected at theta
 
         Args:
             theta (float): angle of intersection
-            vx (float): x component of incoming velocity vector
-            vy (float): y component of incoming velocity vector
+            xdir (float): x component of incoming velocity vector
+            ydir (float): y component of incoming velocity vector
 
         Returns:
-            tuple: 1, ry/rx; x and y component of reflected beam normalized to x = 1
+            tuple: rx, ry; x and y component of reflected beam
         """
-        #print('before', vx**2 + vy**2)
         nx, ny = self.return_normal_vec(theta)
-        #print('normalize', nx**2 + ny**2)
-        vtimesn = nx*vx + ny*vy
+        vtimesn = nx*xdir + ny*ydir
         #print('leftscalar', vtimesn/((nx*nx+ny*ny)*(vx*vx+vy*vy))**0.5)
-        rx, ry = vx-2*vtimesn*nx, vy-2*vtimesn*ny
+        rx, ry = xdir-2*vtimesn*nx, ydir-2*vtimesn*ny
         #print('rightscalar', (rx*nx+ry*ny)/((nx*nx+ny*ny)*(rx*rx+ry*ry)**0.5))
         #print('after', rx**2 + ry**2)
         return rx, ry
 
     def return_all_branches(self):
-        """tries to intersect all possible spirals with the neutron
+        """tries to intersect all possible spirals with the neutron path
 
         Returns:
             list: list of 
