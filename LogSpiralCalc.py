@@ -324,7 +324,6 @@ class Intersection:
         prefac = 1/(1 + k**2)**0.5
         nx = (np.cos(theta)+k*np.sin(theta))*prefac
         ny = (np.sin(theta)-k*np.cos(theta))*prefac
-        #print('normal', nx, ny)
         return nx, ny
 
     def return_reflect_dir(self, theta, vx, vy):
