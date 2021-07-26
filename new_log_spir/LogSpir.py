@@ -35,10 +35,11 @@ class LogSpir:
         """initializes the logarithmic mirror r(theta) = zstart * exp(k*theta), with k = cotan(psi)
 
         Args:
-            zstart (float): where the logspiral cuts the x axis
-            zend (float): at which x value the log spiral shall end, important for the linear approx
-            psi (float): the angle (deg) at which the spiral cuts the xaxis, also the angle under which neutrons hit the mirror
-            branches (int): how many identical branches should the log spiral comprise
+            zstart (float): where the logspiral cuts the zaxis
+            zend (float): at which z-value the log spiral shall end, important for the linear approx
+            psi (float): the angle (deg) at which the spiral cuts the zaxis, also the angle under which neutrons originating from
+            the origin hit the mirror
+            branches (int): number of branches from the log spiral
         """
         self.zstart = zstart
         self.zend = zend
@@ -47,9 +48,10 @@ class LogSpir:
         self.psi_rad = psi*deg2rad
         self.k = 1/np.tan(self.psi_rad) #helper variable showing in the formula
 
-        #function and derivative are used to find the angle theta at which the x_value of the spiral equals zend
+        #function and derivative are used to find the angle theta at which the z_value of the spiral equals zend
         self.function = lambda theta: np.cos(theta)*self.zstart*np.exp(self.k*theta)-self.zend
         self.derivative = lambda theta: self.zstart*np.exp(self.k*theta)*(np.cos(theta)*self.k-np.sin(theta))
+
         self.theta_end = self.return_precise_theta_end(self.zend)
         self.xend = self.zend*np.tan(self.theta_end)
         self.branches = branches#int(theta_range/180*np.pi/self.theta_end) + 1
@@ -128,7 +130,7 @@ class LogSpir:
         Args:
             zend (float, optional): z coordinate at which the mirror ends. Defaults to None
             max_iterations (int, optional): maximum number of iterations, if no convergence is reached return None. Defaults to 10.
-            precision (float, optional): how precision of thetha end. Defaults to 10**-5.
+            precision (float, optional): Precision of thetha end. Defaults to 10**-5.
 
         Returns:
             float: theta_end such that the z coord approximates zend
@@ -141,17 +143,8 @@ class LogSpir:
             theta_0 = theta_n
         return None
 
-    def update_theta_end(self, max_iterations=10, precision=10**-5):
-        """updates the classes theta_end parameter
-
-        Args:
-            max_iterations (int, optional): maximum number of iterations, if no convergence is reached return None. Defaults to 10.
-            precision ([type], optional): how precision of thetha end. Defaults to 10**-5.
-        """
-        self.theta_end = self.return_precise_theta(max_iterations=max_iterations, precision=precision)
-
     def return_approx_theta_int(self, neutron: Neutron):
-        """returns an approximate value for theta, approximating the mirror as a line
+        """returns an approximate value for theta, approximating the mirror as a line from beginning to end
 
         Args:
             neutron (Neutron): incoming neutron to be refleted
@@ -160,7 +153,7 @@ class LogSpir:
             theta (float): theta value of the intersection
         """
         #1st calc prelim intersection, then tan takes care of the rest
-        z0, x0, vz0, vx0 = neutron.z, neutron.x, neutron.vz, neutron.vx
+        z0, x0, vz0, vx0 = neutron.return_coords()
         z1, x1, vz1, vx1 = self.zstart, 0, self.zend-self.zstart, self.xend
         zint, xint = self.return_intersect_lines(z0, x0, vz0, vx0, z1, x1, vz1, vx1)
         approx_theta = np.arctan(xint/zint)
@@ -179,7 +172,7 @@ class LogSpir:
         """
         k = self.k
         m = xdir/zdir #neutron.vx/neutron.vz
-        x0 = x+(0-z)/zdir*xdir
+        x0 = x+(0-z)/zdir*xdir #x-coordinate of the intersection of the neutron with the z axis
 
         def function(theta):#line intersects spiral where function(theta) = 0
             return np.exp(k*theta)*(np.sin(theta) - m*np.cos(theta))-x0/self.zstart
@@ -205,12 +198,14 @@ class LogSpir:
         """
         z, x, vz, vx = neutron.return_coords()
         theta_int = self.return_precise_theata_int(z, x, vz, vx)
+        if theta_int == None:
+            return None
         z_int, x_int = self.return_cart_coords(theta_int)
         return z_int, x_int
 
     def return_normal_vec(self, theta):
         """returns the normal vector of the spiral at given theta,
-        relevant for the calculation of the reflection
+        relevant for the calculation of the direction of the reflected vector
 
         Args:
             theta (float): angle of intersection (deg)
@@ -218,14 +213,15 @@ class LogSpir:
         Returns:
             tuple: nx,ny x and y component of the normal vector
         """
-        #print('theta', theta*180/np.pi)
         k = self.k
         norm_prefac = 1/(1 + k**2)**0.5
-        nz = (np.cos(theta)+k*np.sin(theta))*norm_prefac
-        nx = (np.sin(theta)-k*np.cos(theta))*norm_prefac
+        cos = np.cos(theta)
+        sin = np.sin(theta)
+        nz = (cos+k*sin)*norm_prefac
+        nx = (sin-k*cos)*norm_prefac
         return nz, nx
 
-    def return_reflected_vec(self, nz, nx, zdir, xdir):
+    def return_reflected_dir(self, nz, nx, zdir, xdir):
         """returns the direction of the reflected neutron when given the norm-vector of the surface
 
         Args:
@@ -238,8 +234,22 @@ class LogSpir:
             (tuple): (rz, rx): tuple comprising the z and x direction of the reflected neutron
         """
         vdotn = nz*zdir + nx*xdir
-        rz, rx = zdir-2*vdotn*nz, xdir-2*vdotn*nx
+        rz, rx = zdir-2*vdotn*nz, xdir-2*vdotn*nx #classic reflected direction
         return rz, rx
+
+    def rotate_vector(self, z, x, theta):
+        """quick function to return a vector rotated around the origin by an angle theta
+
+        Args:
+            z (float): z-coordinate of the rotated vector
+            x (float): x-coordinated of the rotated vector
+            theta (float): the angle to rotate by
+
+        Returns:
+            (tuple): (z_rotated, x_rotated)
+        """
+        sin, cos = np.sin(theta), np.cos(theta)
+        return z*cos - x*sin, z*sin + x*cos
 
     def rotate_neutron(self, z0, x0, zdir, xdir, theta_rot):
         """rotates a line defined by (z0, x0) + t*(zdir, xdir) around the origin by an angle of theta_rot
@@ -261,9 +271,7 @@ class LogSpir:
         rot_xdir = sin*zdir + cos*xdir
         return rot_z0, rot_x0, rot_zdir, rot_xdir
 
-    def rotate_vector(self, z, x, theta):
-        sin, cos = np.sin(theta), np.cos(theta)
-        return z*cos - x*sin, z*sin + x*cos
+
 
 
     def return_timebranch_first_interaction(self, neutron: Neutron):
@@ -311,7 +319,9 @@ class LogSpir:
         z_int, x_int, vz, vx = neutron.prop_neutron(time) #neutron is propagated
         nz, nx = self.return_normal_vec(theta)
         nz, nx = self.rotate_vector(nz, nx, theta_rot)#normal vector returned has to be rotated according to the branch it originates from
-        rz, rx = self.return_reflected_vec(nz, nx, vz, vx)
+        print('normal vector', nz, nx)
+        rz, rx = self.return_reflected_dir(nz, nx, vz, vx)
+        print('returning direction', rz, rx)
         return Neutron(z_int, x_int, rz, rx)# return the reflected neutron
 
     def propagate_neutron(self, neutron: Neutron, max_interaction=100):
@@ -335,7 +345,7 @@ class LogSpir:
         return positions, neutron
 
 log = LogSpir(1, 4, 5, 4)
-neutron = Neutron(0, -11, 1, 12)
+neutron = Neutron(4, 1.5, -1, -5)
 print('angelo merte', log.return_precise_theata_int(*neutron.return_coords()))
 print('what what', log.return_first_interaction(neutron))
 
