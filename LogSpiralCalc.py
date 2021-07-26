@@ -104,7 +104,7 @@ class LogSpiral:
             plot (bool, optional): Whether to plot the resulting equivalent line. Defaults to False.
 
         Returns:
-            tuple: (x0, y0, xdir, ydir) 
+            tuple: (x0, y0, xdir, ydir)
         """
         xstart = self.xstart
         ystart = 0
@@ -160,6 +160,7 @@ class Line2D:
         self.y0 = y0
         self.xdir = xdir
         self.ydir = ydir
+        self.m = ydir/xdir
 
     def return_coords(self, t: float):
         """return x and y for a given t
@@ -187,7 +188,7 @@ class Line2D:
         rot_x0 = cos*self.x0 - sin*self.y0
         rot_y0 = sin*self.x0 + cos*self.y0
         rot_xdir = cos*self.xdir - sin*self.ydir
-        rot_ydir = sin*self.xdir + sin*self.ydir
+        rot_ydir = sin*self.xdir + cos*self.ydir
         #rot_m = (sin + cos * m)/(cos - sin * m)
         #rot_y0 = self.y0*(cos + sin*rot_m)
         return rot_x0, rot_y0, rot_xdir, rot_ydir
@@ -256,7 +257,7 @@ class Intersection:
             return theta_prelim
         return None
 
-    def return_precise_thetaint(self, max_iterations=10, precision=10**-5,p=True):
+    def return_precise_thetaint(self, max_iterations=10, precision=10**-5,p=False):
         """returns a precise value for the intersection between the
         log spir and the ray using newton approx
 
@@ -276,7 +277,7 @@ class Intersection:
         xstart = self.logspir.xstart
         y0 = self.line.y0+(0-self.line.x0)/self.line.xdir*self.line.ydir#intersection with y-axis
 
-        def function(theta):#line intersects spiral where function(theta) = 0 
+        def function(theta):#line intersects spiral where function(theta) = 0
             return np.exp(k*theta)*(np.sin(theta) - m*np.cos(theta))-y0/xstart
 
         def derivative(theta):#theta derivative of the above function for newton iterations
@@ -351,35 +352,50 @@ class Intersection:
         return rx, ry
 
     def return_all_branches(self):
-        """tries to intersect all possible spirals with the neutron path
+        """calculates the intersection with every branch of the logarithmic spiral and returns every point of intersection
+        sorted by the time it takes to arrive at the respective mirror
 
         Returns:
-            list: list of 
+            list: [(t, x_int, y_int), ...] list of intersection with respective mirrors
         """
         logspir = self.logspir
         theta_rot = logspir.theta_end
         intersects = []
-        fix_line = Line2D(self.line.x0, self.line.y0, self.line.xdir, self.line.ydir)
+        fix_line = Line2D(self.line.x0, self.line.y0, self.line.xdir, self.line.ydir)#as the lines are rotated we keep the original here
         hit = False
+        #print('init', self.return_scatter_coords())
         for branch in range(logspir.branches):
             sin = np.sin(theta_rot*branch)
             cos = np.cos(theta_rot*branch)
+            #print('init', self.return_scatter_coords())
+            #print('rotated line', self.line.x0, self.line.y0, self.line.xdir, self.line.ydir,'\n sin, cos', sin, cos)
             self.line.x0, self.line.y0, self.line.xdir, self.line.ydir \
                 = fix_line.return_rotated_line(-branch*theta_rot*180/np.pi)
-            print('rotated line', self.line.x0, self.line.y0, self.line.xdir, self.line.ydir)
+            #print('init', self.return_scatter_coords())
+
+            #print('rotated line', self.line.x0, self.line.y0, self.line.xdir, self.line.ydir,'\n sin, cos', sin, cos)
             try:
                 x_int, y_int = self.return_scatter_coords()
-                x_int, y_int = cos*x_int - sin*y_int, sin*x_int + cos*y_int
-                intersects.append((x_int, y_int))
-                hit = True
+                #print(x_int, y_int)
+                try:
+                    t = (x_int-self.line.x0)/self.line.xdir
+                except ZeroDivisionError:
+                    t = (y_int-self.line.y0)/self.line.ydir
+                if t > 0:
+                    x_int, y_int = cos*x_int - sin*y_int, sin*x_int + cos*y_int
+                    intersects.append((t, x_int, y_int))
+                    hit = True
             except TypeError:
                 print('no can do ', branch)
                 if hit==True:
                     break
         self.line = fix_line
-        return intersects
+        return sorted(intersects, key=lambda x: x[0])
 
-    def plot_intersection(self):
+    def propagate_once(self):
+        pass
+
+    def plot_intersection(self, fig=None, ax=None):
         """plots the situation and returns the fig,ax
         """
         int_theta = self.return_precise_thetaint()
@@ -392,14 +408,15 @@ class Intersection:
             ax.plot([0, self.logspir.xend],[self.line.y0, self.line.y0 + self.logspir.xend*self.line.m], linestyle='-', marker=' ',\
             color='darkgreen', label='incoming')
             return fig,ax
-        fig,ax = plt.subplots(1)
+        if fig and ax == False:
+            fig,ax = plt.subplots(1)
         x_int, y_int = self.logspir.return_cart_coords(int_theta)
         theta_range = self.logspir.return_theta_range()
         theta_range = np.linspace(theta_range[0],theta_range[1],100)
         ax.plot(*self.logspir.return_cart_coords(theta_range),\
          linestyle='-', marker=' ', color='black', label='mirror')
         ax.plot([0, x_int],[self.line.y0, y_int], linestyle='-', marker=' ',\
-        color='darkgreen', label='incoming')
+            color='darkgreen', label='incoming')
         x_back = x_int*2
         vx = 1
         vy = self.line.m
@@ -408,11 +425,14 @@ class Intersection:
         nx, ny = self.return_normal_vec(int_theta)
         ny /= nx
         nx = 1
-        ax.plot([x_int, x_int-0.5], [y_int, y_int -0.5*ny],\
-        linestyle='-', marker=' ')
-        rx, ry = self.return_reflect_dir(theta=int_theta, vx=vx, vy=vy)
+        ax.plot([x_int, x_int-0.2], [y_int, y_int -0.2*ny],\
+        linestyle='-', marker=' ', label='surface normal')
+        rx, ry = self.return_reflect_dir(theta=int_theta, xdir=vx, ydir=vy)
         #print('reflected', rx, ry)
         y_back = y_int + (x_back-x_int)*ry
-        ax.plot([x_int, x_back], [y_int, y_back], color='red', label='reflected')
+        ax.plot([x_int, x_back], [y_int, y_back], label='reflected', marker=' ')
+        ax.set_ylabel('y (m)')
+        ax.set_xlabel('x (m)')
+
         return fig, ax
 
