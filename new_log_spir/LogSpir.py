@@ -6,6 +6,14 @@ deg2rad = 1/rad2deg
 
 class Neutron:
     def __init__(self, z, x, vz, vx) -> None:
+        """initializes a neutron with position and velocity
+
+        Args:
+            z (float): z-coordinate of the neutrons origin
+            x (float): x-coordinate of the neutrons origin
+            vz (float): velocity of the neutron in z-direction
+            vx (float): velocity of the neutron in x-direction
+        """
         self.z = z
         self.x = x
         self.vz = vz
@@ -31,7 +39,7 @@ class Neutron:
         return self.z + self.vz*dt, self.x+self.vx*dt, self.vz, self.vx
 
 class LogSpir:
-    def __init__(self, zstart: float, zend: float, psi: float, branches: int) -> None:
+    def __init__(self, zstart: float, zend: float, psi: float, branches: int, precision: float = 1e-7) -> None:
         """initializes the logarithmic mirror r(theta) = zstart * exp(k*theta), with k = cotan(psi)
 
         Args:
@@ -47,7 +55,7 @@ class LogSpir:
         self.psi = psi
         self.psi_rad = psi*deg2rad
         self.k = 1/np.tan(self.psi_rad) #helper variable showing in the formula
-
+        self.precision=precision
         #function and derivative are used to find the angle theta at which the z_value of the spiral equals zend
         self.function = lambda theta: np.cos(theta)*self.zstart*np.exp(self.k*theta)-self.zend
         self.derivative = lambda theta: self.zstart*np.exp(self.k*theta)*(np.cos(theta)*self.k-np.sin(theta))
@@ -125,7 +133,7 @@ class LogSpir:
         prelim_theta = np.log(zend/self.zstart)*1/self.k# zend is approximated by r
         return prelim_theta
 
-    def return_precise_theta_end(self, zend=None, max_iterations=10, precision=10**-5):
+    def return_precise_theta_end(self, zend=None, max_iterations=10, precision=None):
         """uses newton raphson to calculate a precise value for theta_end and returns the value
         Args:
             zend (float, optional): z coordinate at which the mirror ends. Defaults to None
@@ -135,6 +143,8 @@ class LogSpir:
         Returns:
             float: theta_end such that the z coord approximates zend
         """
+        if precision == None:
+            precision = self.precision
         theta_0 = self.return_approx_theta_end(zend)
         for _ in range(max_iterations):
             theta_n = theta_0 - self.function(theta_0)/self.derivative(theta_0)
@@ -159,7 +169,7 @@ class LogSpir:
         approx_theta = np.arctan(xint/zint)
         return approx_theta
 
-    def return_precise_theata_int(self, z, x, zdir, xdir, max_iterations=10, precision=1e-6):
+    def return_precise_theata_int(self, z, x, zdir, xdir, max_iterations=10, precision=None):
         """returns the precise angle under which the neutron hits the logspirtal
 
         Args:
@@ -170,6 +180,8 @@ class LogSpir:
         Returns:
             float: theta angle of intersection
         """
+        if precision == None:
+            precision = self.precision
         k = self.k
         m = xdir/zdir #neutron.vx/neutron.vz
         x0 = x+(0-z)/zdir*xdir #x-coordinate of the intersection of the neutron with the z axis
@@ -188,6 +200,7 @@ class LogSpir:
                     return thetan
                 return None
             theta0 = thetan
+        print('non applicable')
         return None
 
     def return_inters_coords(self, neutron: Neutron):
@@ -344,8 +357,8 @@ class LogSpir:
             positions.append(n_r.return_coords())
         return positions, neutron
 
-log = LogSpir(1, 4, 5, 4)
-neutron = Neutron(4, 1.5, -1, -5)
+log = LogSpir(1, 4, 5, 4, precision=1e-8)
+neutron = Neutron(4, 1.5, -1, -1)
 print('angelo merte', log.return_precise_theata_int(*neutron.return_coords()))
 print('what what', log.return_first_interaction(neutron))
 
@@ -353,7 +366,7 @@ p=True
 if p:
     fig, ax = plt.subplots(1)
     theta_end = log.theta_end
-    theta_range = np.linspace(0, theta_end, 101)
+    theta_range = np.linspace(0, theta_end, 10001)
     z, x = log.return_cart_coords(theta_range)
     for branch in range(log.branches):
         cos = np.cos(branch*theta_end)
