@@ -41,17 +41,19 @@ class Neutron:
 class LogSpir:
     def __init__(self, zstart: float, zend: float, psi: float, branches: int, precision: float = 1e-7) -> None:
         """initializes the logarithmic mirror r(theta) = zstart * exp(k*theta), with k = cotan(psi)
+           and r = sqrt(z*z + x*x)
 
         Args:
-            zstart (float): where the logspiral cuts the zaxis
-            zend (float): at which z-value the log spiral shall end, important for the linear approx
-            psi (float): the angle (deg) at which the spiral cuts the zaxis, also the angle under which neutrons originating from
-            the origin hit the mirror
-            branches (int): number of branches from the log spiral
+            zstart (float): where the logspiral cuts the zaxis.
+            zend (float): at which z-value the log spiral ends, important for the linear approx.
+            psi (float): the angle in degrees (deg) at which the spiral cuts the zaxis, equals the angle under
+            which neutrons originating from the origin hit the mirror.
+            branches (int): number of branches from the log spiral, how many mirrors.
+            precision (float): precision to which the approximation methods are carried out. Defaults to 1e-7.
         """
         self.zstart = zstart
         self.zend = zend
-        self.theta_start = 0
+        self.theta_start = 0#mirror starts at the z-axis or theta = 0
         self.psi = psi
         self.psi_rad = psi*deg2rad
         self.k = 1/np.tan(self.psi_rad) #helper variable showing in the formula
@@ -62,7 +64,7 @@ class LogSpir:
 
         self.theta_end = self.return_precise_theta_end(self.zend)
         self.xend = self.zend*np.tan(self.theta_end)
-        self.branches = branches#int(theta_range/180*np.pi/self.theta_end) + 1
+        self.branches = branches
 
     def return_r(self, theta):
         """returns the distance from the origin to the spiral at a given angle theta according to r(theta) = zstart*exp(k*theta_rad)
@@ -133,15 +135,15 @@ class LogSpir:
         prelim_theta = np.log(zend/self.zstart)*1/self.k# zend is approximated by r
         return prelim_theta
 
-    def return_precise_theta_end(self, zend=None, max_iterations=10, precision=None):
-        """uses newton raphson to calculate a precise value for theta_end and returns the value
+    def return_precise_theta_end(self, zend, max_iterations=10, precision=None):
+        """uses newton raphson to calculate a precise value under which angle the end of the log spiral appears
         Args:
-            zend (float, optional): z coordinate at which the mirror ends. Defaults to None
-            max_iterations (int, optional): maximum number of iterations, if no convergence is reached return None. Defaults to 10.
-            precision (float, optional): Precision of thetha end. Defaults to 10**-5.
+            zend (float, optional): z coordinate at which the mirror ends.
+            max_iterations (int, optional): maximum number of iterations, if no convergence is reached, return None. Defaults to 10.
+            precision (float, optional): Precision of thetha end. Defaults to self.precision.
 
         Returns:
-            float: theta_end such that the z coord approximates zend
+            float: theta_end such that the z coord at this angle equals zend
         """
         if precision == None:
             precision = self.precision
@@ -163,7 +165,7 @@ class LogSpir:
             theta (float): theta value of the intersection
         """
         #1st calc prelim intersection, then tan takes care of the rest
-        z0, x0, vz0, vx0 = neutron.return_coords()
+        z0, x0, vz0, vx0 = neutron.return_coords() #would it be better to feed the
         z1, x1, vz1, vx1 = self.zstart, 0, self.zend-self.zstart, self.xend
         zint, xint = self.return_intersect_lines(z0, x0, vz0, vx0, z1, x1, vz1, vx1)
         approx_theta = np.arctan(xint/zint)
@@ -283,9 +285,6 @@ class LogSpir:
         rot_zdir = cos*zdir - sin*xdir
         rot_xdir = sin*zdir + cos*xdir
         return rot_z0, rot_x0, rot_zdir, rot_xdir
-
-
-
 
     def return_timebranch_first_interaction(self, neutron: Neutron):
         """returns the index and time of the first first possible interaction of neutron and mirror
