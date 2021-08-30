@@ -349,67 +349,59 @@ class LogSpir:
         Returns:
             (tuple): (list of intermediate positions (z, x, vz, vx), neutron)
         """
-        positions = [neutron.return_coords()]
+        positions = [neutron.return_coords()]#positions are only for testing and not needed for McStas
         for interaction in range(max_interaction):
             n_r = self.return_first_interaction(neutron)
             if not n_r:#if no more interactions can be reached the neutrons last init is returned
                 return positions, neutron
-            print('Neutron', n_r.return_coords())
             neutron = n_r
             positions.append(n_r.return_coords())
         return positions, neutron
 
-log = LogSpir(1, 4, 5, 4, precision=1e-8)
-neutron = Neutron(4, 1.5, -1, -1)
-print('angelo merte', log.return_precise_theata_int(*neutron.return_coords()))
-print('what what', log.return_first_interaction(neutron))
+
 
 p=True
 if p:
+    log = LogSpir(1, 4, 5, 4, precision=1e-8)
+    neutron = Neutron(4, 1.5, -1, -1)
     fig, ax = plt.subplots(1)
     theta_end = log.theta_end
     theta_range = np.linspace(0, theta_end, 10001)
     z, x = log.return_cart_coords(theta_range)
-    for branch in range(log.branches):
+
+    for branch in range(log.branches):#plotting all spirals of the log spiral for testing
         cos = np.cos(branch*theta_end)
         sin = np.sin(branch*theta_end)
         z_r, x_r = cos*z - sin*x, sin*z + cos*x
         ax.plot(z_r, x_r, color='black', label='mirror')
-        ax.plot([log.zstart, log.zend], [0, log.xend], label='approx')
-    ax.set_aspect('equal')
-    ax.plot([neutron.z, neutron.z + log.zend], [neutron.x, neutron.x+neutron.vx/neutron.vz*log.zend], label='incoming')
+        ax.plot([log.zstart, log.zend], [0, log.xend], label='approx')#approximation of the non-rotated mirror, determines
+        #the initial mirror
     path, neutron = log.propagate_neutron(neutron)
     ax.plot([neutron.z, neutron.z + log.zend], [neutron.x, neutron.x+neutron.vx/neutron.vz*log.zend], label='incoming')
-    z_path = [k[0] for k in path]
-    x_path = [k[1] for k in path]
+    z_path, x_path = zip(*[k[:2] for k in path])
+    ax.set_aspect('equal')
     ax.plot(z_path, x_path, ls='-', marker=' ')
     plt.show()
-log.return_first_interaction(neutron)
-#x0 = 0
-#y0 = 1
-#xdir = 1
-#ydir = -0.5
-#line = lgs.Line2D(x0, y0, xdir, ydir)
 
-#plt.show()
-print(log.theta_end)
-#print(log.return_intersect_lines()#)
-print(log.return_approx_theta_int(neutron))
-print(log.return_precise_theata_int(*neutron.return_coords()))
+p=True
+if p:
+    log = LogSpir(1, 4, 5, 4, precision=1e-8)
+    neutron = Neutron(0, 0.3, 1, -0.1)
+    fig, ax = plt.subplots(1)
+    theta_end = log.theta_end
+    theta_range = np.linspace(0, theta_end, 10001)
+    z, x = log.return_cart_coords(theta_range)
 
-#fig, ax = log.plot_log_spir()
-#ax.set_aspect('equal')
-#
-#fig, ax = plt.subplots()
-#ax.plot([x0, x0 + 2], [y0, y0+ydir/xdir*2], color = 'green', label='incoming', marker=' ')
-#inter = lgs.Intersection(log, line)
-#fig, ax = inter.plot_intersection(fig, ax)
-#
-#
-#x0 = 0
-#y0 = 0
-#xdir = 1
-#ydir = 0.02
-#line = lgs.Line2D(x0, y0, xdir, ydir)
-#inter = lgs.Intersection(log, line)
-#
+    for branch in range(log.branches):#plotting all spirals of the log spiral for testing
+        cos = np.cos(branch*theta_end)
+        sin = np.sin(branch*theta_end)
+        z_r, x_r = cos*z - sin*x, sin*z + cos*x
+        ax.plot(z_r, x_r, color='black', label='mirror')
+        ax.plot([log.zstart, log.zend], [0, log.xend], label='approx')#approximation of the non-rotated mirror, determines
+        #the initial mirror
+    path, neutron = log.propagate_neutron(neutron)
+    ax.plot([neutron.z, neutron.z + log.zend], [neutron.x, neutron.x+neutron.vx/neutron.vz*log.zend], label='incoming')
+    z_path, x_path = zip(*[k[:2] for k in path])
+    ax.set_aspect('equal')
+    ax.plot(z_path, x_path, ls='-', marker=' ')
+    plt.show()
