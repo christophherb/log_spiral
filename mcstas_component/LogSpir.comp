@@ -1,0 +1,374 @@
+/*******************************************************************************
+*
+* McStas, neutron ray-tracing package
+*         Copyright (C) 1997-2011, All rights reserved
+*         Risoe National Laboratory, Roskilde, Denmark
+*         Institut Laue Langevin, Grenoble, France
+*
+* Component: Logarithmic spiral
+*
+* %I
+* Written by: Christoph Herb
+* Date: 2 Sep 2021
+* Origin: TUM
+*
+* Simulation of a mirror surface shaped like a log spiral. Newton Raphson is used for the implementaion
+*
+*
+* %D
+*
+* The origin of the component coincides with the origin of the log spiral coordinate system. The spiral starts at zstart and is defined by the angle psi, which indicates
+* under which angle rays from the origin hit the mirror.
+*
+* %P
+* INPUT PARAMETERS:
+
+* OUTPUT PARAMETERS
+
+* %D
+*
+*
+*
+* %E
+*******************************************************************************/
+
+DEFINE COMPONENT LogSpiral
+DEFINITION PARAMETERS()
+SETTING PARAMETERS (
+    zstart=1,
+    zend=2,
+    psi=5,
+    precision=1e-7,
+    placeholder=0
+)
+
+OUTPUT PARAMETERS (
+)
+
+SHARE
+%{
+%include "ref-lib"
+
+///////////////////////////////////////////////////////////////////////////
+/////////////// Some Structures
+///////////////////////////////////////////////////////////////////////////
+struct LogSpir
+{
+    double zstart;
+    double zend;
+    double psi;
+    double psi_rad=psi*DEG2RAD
+    double k=arctan(psi_rad);
+    double precision;
+    double theta_end;
+    double x_end;
+} logspiral;//logspiral will be our surface to reflect from; nice
+
+///////////////////////////////////////////////////////////////////////////
+/////////////// Collision handling functions
+///////////////////////////////////////////////////////////////////////////
+double return_r(double theta, double k, double zstart){
+    return zstart*exp(k*theta);
+};
+
+double return_approx_theta_end(LogSpiral logspir){
+    return log(logspir.zend/logspir.zstart)/logspir.k
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////
+/////////////// End of functions
+///////////////////////////////////////////////////////////////////////////
+%}
+
+
+DECLARE
+%{
+	/**
+		All variables below is locally declared
+		and hence accessible through OUTPUT PARAMETERS.
+	*/
+
+
+%}
+
+INITIALIZE
+%{
+	///////////////////////////////////////////////////////////////////////////
+	/////////////// Test user input
+	///////////////////////////////////////////////////////////////////////////
+
+
+	}
+
+	// Test user input for illegal values
+
+TRACE
+%{
+  PROP_Z0;
+  SCATTER;
+
+  double Gloc;
+  if (curvature) {
+    Gloc=(vx*vx+vy*vy+vz*vz)/curvature;
+  } else {
+    Gloc=0;
+  }
+
+
+	if( !guideInfo.EnclosingBoxOn )
+		if( fabs(x) > guideInfo.entranceHorizontalWidth/2.0
+		    || fabs(y) > guideInfo.entranceVerticalWidth/2.0 )
+		  ABSORB;
+
+
+	int bounces = 0;
+	for(bounces = 0; bounces <= 1000; bounces++){
+
+	  Gx=Gx0; Gy=Gy0; Gz=Gz0;
+	  if (curvature) {
+	    // Add velocity-dependent, location-dependent approximation to centripetal force for curvature...
+	    Gx=Gx0+Gloc*cos(2*PI*z/Circ);Gz=Gz0+Gloc*sin(2*PI*z/Circ);
+	  }
+
+		// Find the next intersection between the guide and the neutron.
+		int boolean = guide_elliptical_handleGuideIntersection(
+							x,y,z,vx,vy,vz,Gx,Gy,Gz,
+							&guideInfo,&latestParticleCollision);
+
+		double timeToCollision =
+				latestParticleCollision.delta_time_to_next_collision;
+
+		// Handle special cases.
+		if(boolean == 0) ABSORB;
+		if(timeToCollision < 1e-15) ABSORB;
+
+		// If the neutron reach the end of the guide, when move
+		// the neutron to the end of guide and leave this component.
+		if( z+vz*timeToCollision+0.5*Gz*timeToCollision*timeToCollision
+			>= guideInfo.Length )
+		{
+			double timeToExit = 0;
+			solve_2nd_order(
+					&timeToExit,NULL,
+					-0.5*Gz,-vz,guideInfo.Length-z-1e-9);
+			PROP_GRAV_DT(timeToExit,Gx,Gy,Gz);
+			SCATTER;
+			break;
+		}
+
+		// Move the neutron and handle the reflection.
+		PROP_GRAV_DT(timeToCollision,Gx,Gy,Gz);
+		if(latestParticleCollision.collisionType == Absorb){ ABSORB; }
+		if(latestParticleCollision.collisionType == Reflex){
+			p *= guide_elliptical_handleReflection(x,y,z,&vx,&vy,&vz,
+						&guideInfo,&latestParticleCollision);
+			SCATTER;
+			if(p == 0) ABSORB;
+		}
+	}
+
+	if( fabs(x) > guideInfo.exitHorizontalWidth/2
+	 || fabs(y) > guideInfo.exitVerticalWidth/2 )
+		ABSORB;
+
+%}
+
+
+FINALLY
+%{
+%}
+
+MCDISPLAY
+%{
+
+
+	// Calculate the points need to draw approximation of the ellipses
+	// defining the guide
+
+	// the number of lines used to draw one side of the guide
+	int ApproximationMirrors = 500;
+
+	// The start of the guide
+	double zvalue=0;
+
+	// The the different in z between point used to draw the ellipse
+	double zdelta = guideInfo.Length/(1.0*ApproximationMirrors);
+
+	// The vector used to store the points defining the lines
+	double xplus[ApproximationMirrors+1];
+	double xminus[ApproximationMirrors+1];
+	double yplus[ApproximationMirrors+1];
+	double yminus[ApproximationMirrors+1];
+
+	// Temperary values for the loop
+	double tempx;
+	double tempy;
+
+	/*
+		Calculate the second coordinates to the points on the ellipse with z_i
+		as the first coordinate. We transform the point to the coordinate system
+		there the ellipse is a unit circle. And use the defination of this circle
+		to find second coordinate (x^2+z^2 = 1)
+	*/
+
+	/////////////////////////////////////////////////////////
+	double Length;
+	double entranceHorizontalWidth;
+	double entranceVerticalWidth;
+
+	// ellipses infomation
+	double ellipseMajorAxis[4],		ellipseMinorAxis[4];
+	double ellipseMajorOffset[4],	ellipseMinorOffset[4];
+
+	enum Side {RightSide,TopSide,LeftSide,BottomSide,None};
+	/////////////////////////////////////////////////////////
+
+	int i = 0;
+	double tempz = 0;
+	for(i=0;i<ApproximationMirrors+1;i++){
+
+		tempx = sqrt(
+			guideInfo.ellipseMinorAxis[RightSide]
+			*guideInfo.ellipseMinorAxis[RightSide]
+			-(	guideInfo.ellipseMinorAxis[RightSide]
+				*guideInfo.ellipseMinorAxis[RightSide] )
+			/(	guideInfo.ellipseMajorAxis[RightSide]
+				*guideInfo.ellipseMajorAxis[RightSide] )
+			*( zvalue+zdelta*i-guideInfo.ellipseMajorOffset[RightSide] )
+			*( zvalue+zdelta*i-guideInfo.ellipseMajorOffset[RightSide] )
+		);
+
+		xplus[i] =  tempx + guideInfo.ellipseMinorOffset[RightSide];
+		xminus[i]= -tempx + guideInfo.ellipseMinorOffset[RightSide];
+
+		tempy = sqrt(
+			guideInfo.ellipseMinorAxis[TopSide]
+			*guideInfo.ellipseMinorAxis[TopSide]
+			-(	guideInfo.ellipseMinorAxis[TopSide]
+				*guideInfo.ellipseMinorAxis[TopSide] )
+			/(	guideInfo.ellipseMajorAxis[TopSide]
+				*guideInfo.ellipseMajorAxis[TopSide] )
+			*( zvalue+zdelta*i-guideInfo.ellipseMajorOffset[TopSide] )
+			*( zvalue+zdelta*i-guideInfo.ellipseMajorOffset[TopSide] )
+		);
+
+		yplus[i] =  tempy + guideInfo.ellipseMinorOffset[TopSide];
+		yminus[i]= -tempy + guideInfo.ellipseMinorOffset[TopSide];
+	}
+
+	///// Draw lines
+
+	// Drawing lines orthogonal with the z direction.
+	// at both ends of the guide and at the boardest place at the guide
+
+	// These may not give correct result if one of the ends are closed
+
+	int j=0;
+
+	line( xplus[j], yplus[j], zvalue+j*zdelta,0 	  , yplus[j], zvalue+j*zdelta);
+	line( 0 	   , yplus[j], zvalue+j*zdelta,xminus[j], yplus[j], zvalue+j*zdelta);
+	line( xminus[j], yminus[j], zvalue+j*zdelta,0 	   , yminus[j], zvalue+j*zdelta);
+	line( 0, 		yminus[j], zvalue+j*zdelta,xplus[j], yminus[j], zvalue+j*zdelta);
+	line( xminus[j],yplus[j], zvalue+j*zdelta, xminus[j],0 		, zvalue+j*zdelta);
+	line( xminus[j],0 		 , zvalue+j*zdelta,xminus[j],yminus[j], zvalue+j*zdelta);
+	line( xplus[j], 0, 		  zvalue+j*zdelta, xplus[j], yplus[j], zvalue+j*zdelta);
+	line( xplus[j], yminus[j], zvalue+j*zdelta,xplus[j],0 		, zvalue+j*zdelta);
+
+	j=ApproximationMirrors;
+
+	line( xplus[j], yplus[j], zvalue+j*zdelta,0 		, yplus[j], zvalue+j*zdelta);
+	line( 0 	   , yplus[j],zvalue+j*zdelta,xminus[j] , yplus[j], zvalue+j*zdelta);
+	line( xminus[j], yminus[j], zvalue+j*zdelta,0 	    , yminus[j], zvalue+j*zdelta);
+	line( 0, 		yminus[j], zvalue+j*zdelta, xplus[j], yminus[j], zvalue+j*zdelta);
+	line( xminus[j],yplus[j], zvalue+j*zdelta, xminus[j],0 		 , zvalue+j*zdelta);
+	line( xminus[j],0 		 , zvalue+j*zdelta,xminus[j],yminus[j], zvalue+j*zdelta);
+	line( xplus[j], 0, 		  zvalue+j*zdelta, xplus[j], yplus[j], zvalue+j*zdelta);
+	line( xplus[j], yminus[j], zvalue+j*zdelta,xplus[j], 0 		 , zvalue+j*zdelta);
+
+
+
+	// find boardest place on the guide and draw a band around the guide
+	int m0;
+	double boardestPlace = 0;
+	int boardestPlaceNumber = 0;
+	for(m0=0; m0<ApproximationMirrors; m0++){
+		if( boardestPlace <= fabs(yplus[m0]) ){
+			boardestPlace = fabs(yplus[m0]);
+			boardestPlaceNumber = m0;
+		}
+	}
+	j = boardestPlaceNumber;
+
+	line( xplus[j], yplus[j], zvalue+j*zdelta,0 		, yplus[j], zvalue+j*zdelta);
+	line( 0 	   , yplus[j], zvalue+j*zdelta,xminus[j], yplus[j], zvalue+j*zdelta);
+	line( xminus[j], yminus[j], zvalue+j*zdelta,0 	   , yminus[j], zvalue+j*zdelta);
+	line( 0, 		yminus[j], zvalue+j*zdelta, xplus[j], yminus[j], zvalue+j*zdelta);
+	line( xminus[j],yplus[j], zvalue+j*zdelta, xminus[j],0 		, zvalue+j*zdelta);
+	line( xminus[j],0 		 , zvalue+j*zdelta, xminus[j],yminus[j], zvalue+j*zdelta);
+	line( xplus[j], 0, 		  zvalue+j*zdelta, xplus[j], yplus[j], zvalue+j*zdelta);
+	line( xplus[j], yminus[j], zvalue+j*zdelta, xplus[j], 0 		 , zvalue+j*zdelta);
+
+
+
+	// Drawing lines parallel with the z direction
+
+	int k=0;
+	for(k=0; k < ApproximationMirrors; k++){
+
+		line( xplus[k], yplus[k], zvalue+k*zdelta,xplus[k+1], yplus[k+1], zvalue+(k+1)*zdelta);
+		line( xminus[k],yplus[k], zvalue+k*zdelta,xminus[k+1],yplus[k+1], zvalue+(k+1)*zdelta);
+
+		line( xplus[k], yminus[k],zvalue+k*zdelta,xplus[k+1], yminus[k+1],zvalue+(k+1)*zdelta);
+
+		line( xminus[k],yminus[k],zvalue+k*zdelta,xminus[k+1],yminus[k+1],zvalue+(k+1)*zdelta);
+
+		line( xminus[k],0 		, zvalue+k*zdelta, xminus[k+1],0 	, zvalue+(k+1)*zdelta);
+		line( xplus[k], 0 		, zvalue+k*zdelta, xplus[k+1], 0 	, zvalue+(k+1)*zdelta);
+
+		line( 0 	, yminus[k],  zvalue+k*zdelta, 0 	  	,yminus[k+1],zvalue+(k+1)*zdelta);
+		line( 0 	,yplus[k]  , zvalue+k*zdelta , 0 		,yplus[k] , zvalue+(k+1)*zdelta);
+
+		}
+
+		if(guideInfo.EnclosingBoxOn){
+			dashed_line( guideInfo.xArray[0],guideInfo.yArray[0],guideInfo.zArray[0],
+							guideInfo.xArray[1],guideInfo.yArray[1],guideInfo.zArray[1],10 );
+			dashed_line( guideInfo.xArray[1],guideInfo.yArray[1],guideInfo.zArray[1],
+							guideInfo.xArray[2],guideInfo.yArray[2],guideInfo.zArray[2],10 );
+			dashed_line( guideInfo.xArray[2],guideInfo.yArray[2],guideInfo.zArray[2],
+							guideInfo.xArray[3],guideInfo.yArray[3],guideInfo.zArray[3],10 );
+			dashed_line( guideInfo.xArray[3],guideInfo.yArray[3],guideInfo.zArray[3],
+							guideInfo.xArray[0],guideInfo.yArray[0],guideInfo.zArray[0],10 );
+
+			dashed_line( guideInfo.xArray[4],guideInfo.yArray[4],guideInfo.zArray[4],
+							guideInfo.xArray[5],guideInfo.yArray[5],guideInfo.zArray[5],10 );
+			dashed_line( guideInfo.xArray[5],guideInfo.yArray[5],guideInfo.zArray[5],
+							guideInfo.xArray[6],guideInfo.yArray[6],guideInfo.zArray[6],10 );
+			dashed_line( guideInfo.xArray[6],guideInfo.yArray[6],guideInfo.zArray[6],
+							guideInfo.xArray[7],guideInfo.yArray[7],guideInfo.zArray[7],10 );
+			dashed_line( guideInfo.xArray[7],guideInfo.yArray[7],guideInfo.zArray[7],
+							guideInfo.xArray[4],guideInfo.yArray[4],guideInfo.zArray[4],10 );
+
+			dashed_line( guideInfo.xArray[0],guideInfo.yArray[0],guideInfo.zArray[0],
+							guideInfo.xArray[4],guideInfo.yArray[4],guideInfo.zArray[4],10 );
+			dashed_line( guideInfo.xArray[4],guideInfo.yArray[4],guideInfo.zArray[4],
+							guideInfo.xArray[7],guideInfo.yArray[7],guideInfo.zArray[7],10 );
+			dashed_line( guideInfo.xArray[7],guideInfo.yArray[7],guideInfo.zArray[7],
+							guideInfo.xArray[3],guideInfo.yArray[3],guideInfo.zArray[3],10 );
+			dashed_line( guideInfo.xArray[3],guideInfo.yArray[3],guideInfo.zArray[3],
+							guideInfo.xArray[0],guideInfo.yArray[0],guideInfo.zArray[0],10 );
+
+			dashed_line( guideInfo.xArray[1],guideInfo.yArray[1],guideInfo.zArray[1],
+							guideInfo.xArray[5],guideInfo.yArray[5],guideInfo.zArray[5],10 );
+			dashed_line( guideInfo.xArray[5],guideInfo.yArray[5],guideInfo.zArray[5],
+							guideInfo.xArray[6],guideInfo.yArray[6],guideInfo.zArray[6],10 );
+			dashed_line( guideInfo.xArray[6],guideInfo.yArray[6],guideInfo.zArray[6],
+							guideInfo.xArray[2],guideInfo.yArray[2],guideInfo.zArray[2],10 );
+			dashed_line( guideInfo.xArray[2],guideInfo.yArray[2],guideInfo.zArray[2],
+							guideInfo.xArray[1],guideInfo.yArray[1],guideInfo.zArray[1],10 );
+		}
+%}
+
+END
