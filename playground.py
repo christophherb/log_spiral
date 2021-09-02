@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 p=True
 if p:
     log = LogSpir(1, 4, 5, 4, precision=1e-8)
+    print(log.theta_end)
     neutron = Neutron(4, 1.5, -1, -1)
     fig, ax = plt.subplots(1)
     theta_end = log.theta_end
