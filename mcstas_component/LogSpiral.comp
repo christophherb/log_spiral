@@ -1,0 +1,177 @@
+/*******************************************************************************
+*
+* McStas, neutron ray-tracing package
+*         Copyright (C) 1997-2011, All rights reserved
+*         Risoe National Laboratory, Roskilde, Denmark
+*         Institut Laue Langevin, Grenoble, France
+*
+* Component: Logarithmic spiral
+*
+* %I
+* Written by: Christoph Herb
+* Date: 2 Sep 2021
+* Origin: TUM
+*
+* Simulation of a mirror surface shaped like a log spiral. Newton Raphson is used for the implementaion
+*
+*
+* %D
+*
+* The origin of the component coincides with the origin of the log spiral coordinate system. The spiral starts at zstart and is defined by the angle psi, which indicates
+* under which angle rays from the origin hit the mirror.
+*
+* %P
+* INPUT PARAMETERS:
+
+* OUTPUT PARAMETERS
+
+* %D
+*
+*
+*
+* %E
+*******************************************************************************/
+
+DEFINE COMPONENT LogSpiral
+DEFINITION PARAMETERS()
+SETTING PARAMETERS (
+    zstart=1,
+    zend=4,
+    psi=5,
+    precision=1e-5,
+	max_iterations=10,
+    placeholder=0
+)
+
+OUTPUT PARAMETERS (
+)
+
+SHARE
+%{
+%include "ref-lib"
+
+
+%}
+
+
+DECLARE
+%{
+	///////////////////////////////////////////////////////////////////////////
+/////////////// Some Structures
+///////////////////////////////////////////////////////////////////////////
+struct LogSpir
+{
+    double zstart;
+    double zend;
+    double psi;
+    double psi_rad;//=psi*DEG2RAD;
+    double k;//=arctan(psi_rad);
+    double precision;
+    double theta_end;
+    double x_end;
+};//logspiral will be our surface to reflect from; nice
+
+struct Neutron{
+	double z;
+	double x;
+	double vz;
+	double vx;
+};//Structure for a 2D neutron
+
+
+
+///////////////////////////////////////////////////////////////////////////
+/////////////// Collision handling functions
+///////////////////////////////////////////////////////////////////////////
+double newton_theta_end(struct LogSpir logspir, double theta){
+	return cos(theta)*logspir.zstart*exp(logspir.k*theta)-logspir.zend;
+}
+double newton_theta_end_derivative(struct LogSpir logspir, double theta){
+	return logspir.zstart*exp(logspir.k*theta)*(cos(theta)*logspir.k-sin(theta));
+}
+
+double return_r(double theta, double k, double zstart){
+    return zstart*exp(k*theta);
+};
+
+struct Neutron return_cart_coordsspiral(struct LogSpir logspir, double theta){
+	struct Neutron n;
+	double r = return_r(theta, logspir.k, logspir.zstart);
+	n.z = cos(theta)*r;
+	n.x = sin(theta)*r;
+	return n;
+}
+
+double return_approx_theta_end(struct LogSpir logspir){
+	printf("logspir k %f\n", logspir.k);
+    return log(logspir.zend/logspir.zstart)/logspir.k;
+};
+
+double return_precise_theta_end(struct LogSpir logspir, int max_iterations){
+	double theta_0 = return_approx_theta_end(logspir);
+	double theta_n;
+	for (int ii; ii < max_iterations; ii++){
+		printf("theta0=%f",theta_0);
+		theta_n = theta_0 -  newton_theta_end(logspir, theta_0)/newton_theta_end_derivative(logspir, theta_0);
+		if (fabs(theta_0-theta_n)<logspir.precision){
+			return theta_n;
+			}
+		theta_0 = theta_n;
+	}
+	return -10.0;
+}
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////
+/////////////// End of functions
+///////////////////////////////////////////////////////////////////////////
+
+
+%}
+
+INITIALIZE
+%{
+    double psi_rad;//=psi*DEG2RAD;
+    double k;//=arctan(psi_rad);
+    double theta_end;
+    double x_end;
+	///////////////////////////////////////////////////////////////////////////
+	/////////////// Initialize the logarithmic spiral
+	///////////////////////////////////////////////////////////////////////////
+	struct LogSpir logspir;
+	logspir.zstart=zstart;
+	logspir.zend = zend;
+	logspir.psi = psi;
+	logspir.psi_rad = psi*DEG2RAD;
+	logspir.k = 1/tan(logspir.psi_rad);
+	logspir.precision = precision;
+	printf("a theta end %f \n", return_approx_theta_end(logspir));
+	logspir.theta_end = return_precise_theta_end(logspir, max_iterations);
+	printf("theta_end%f", logspir.theta_end);
+%}
+
+	// Test user input for illegal values
+
+TRACE
+%{
+  PROP_Z0;
+  SCATTER;
+
+
+%}
+
+
+FINALLY
+%{
+%}
+
+MCDISPLAY
+%{
+
+
+%}
+
+END
