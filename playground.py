@@ -28,7 +28,7 @@ if p:
 p=True
 if p:
     log = LogSpir(1, 4, 5, 4, precision=1e-8)
-    neutron = Neutron(0, 0.3, 1, -0.1)
+    neutron = Neutron(0, 0.35, 1, -0.1)
     fig, ax = plt.subplots(1)
     theta_end = log.theta_end
     theta_range = np.linspace(0, theta_end, 10001)
