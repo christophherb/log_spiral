@@ -2,7 +2,7 @@
  * Format:     ANSI C source code
  * Creator:    McStas <http://www.mcstas.org>
  * Instrument: test.instr (logspir_test)
- * Date:       Fri Sep  3 15:09:55 2021
+ * Date:       Fri Sep  3 15:14:46 2021
  * File:       ./test.c
  * Compile:    cc -o logspir_test.out ./test.c 
  * CFLAGS=
@@ -6948,6 +6948,88 @@ void TableReflecFunc(double mc_pol_q, t_Table *mc_pol_par, double *mc_pol_r) {
 
 #line 6949 "./test.c"
 
+/* Shared user declarations for all components 'PSD_monitor'. */
+#line 57 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+
+#ifndef ARRAYS_H
+#define ARRAYS_H
+typedef double* DArray1d;
+DArray1d create_darr1d(int n);
+void destroy_darr1d(DArray1d a);
+
+typedef double** DArray2d;
+DArray2d create_darr2d(int nx, int ny);
+void destroy_darr2d(DArray2d a);
+
+typedef double*** DArray3d;
+DArray3d create_darr3d(int nx, int ny, int nz);
+void destroy_darr3d(DArray3d a);
+#endif
+#ifndef ARRAYS_C
+#define ARRAYS_C
+#include <stdlib.h>
+
+DArray1d create_darr1d(int n){
+  DArray1d arr2d;
+  arr2d = calloc(n, sizeof(double));
+  return arr2d;
+}
+void destroy_darr1d(DArray1d a){
+  free(a);
+}
+
+DArray2d create_darr2d(int nx, int ny){
+  DArray2d arr2d;
+  arr2d = calloc(nx, sizeof(double *));
+
+  double *p1;
+  p1 = calloc(nx*ny, sizeof(double));
+
+  int i;
+  for (i=0; i<nx; i++){
+    arr2d[i] = &(p1[i*ny]);
+  }
+  return arr2d;
+}
+void destroy_darr2d(DArray2d a){
+  free(a[0]);
+  free(a);
+}
+
+DArray3d create_darr3d(int nx, int ny, int nz){
+  DArray3d arr3d;
+  int i, j;
+
+  // 1d
+  arr3d = calloc(nx, sizeof(double **));
+
+  // d2
+  double **p1;
+  p1 = calloc(nx*ny, sizeof(double *));
+
+  for (i=0; i<nx; i++){
+    arr3d[i] = &(p1[i*ny]);
+  }
+
+  // 3d
+  double *p2;
+  p2 = calloc(nx*ny*nz, sizeof(double));
+  for (i=0; i<nx; i++){
+    for (j=0; j<ny; j++){
+      arr3d[i][j] = &(p2[(i*ny+j)*nz]);
+    }
+  }
+  return arr3d;
+}
+void destroy_darr3d(DArray3d a){
+  free(a[0][0]);
+  free(a[0]);
+  free(a);
+}
+#endif
+
+#line 7031 "./test.c"
+
 /* Instrument parameters. */
 MCNUM mcipsource_width;
 MCNUM mcipsource_divergence;
@@ -6992,17 +7074,17 @@ struct mcinputtable_struct mcinputtable[mcNUMIPAR+1] = {
 
 /* neutron state table at each component input (local coords) */
 /* [x, y, z, vx, vy, vz, t, sx, sy, sz, p] */
-MCNUM mccomp_storein[11*7];
+MCNUM mccomp_storein[11*8];
 /* Components position table (absolute and relative coords) */
-Coords mccomp_posa[7];
-Coords mccomp_posr[7];
+Coords mccomp_posa[8];
+Coords mccomp_posr[8];
 /* Counter for each comp to check for inactive ones */
-MCNUM  mcNCounter[7];
-MCNUM  mcPCounter[7];
-MCNUM  mcP2Counter[7];
-#define mcNUMCOMP 6 /* number of components */
+MCNUM  mcNCounter[8];
+MCNUM  mcPCounter[8];
+MCNUM  mcP2Counter[8];
+#define mcNUMCOMP 7 /* number of components */
 /* Counter for PROP ABSORB */
-MCNUM  mcAbsorbProp[7];
+MCNUM  mcAbsorbProp[8];
 /* Flag true when previous component acted on the neutron (SCATTER) */
 MCNUM mcScattered=0;
 /* Flag true when neutron should be restored (RESTORE) */
@@ -7044,6 +7126,18 @@ MCNUM mcclogspir_precision;
 MCNUM mcclogspir_max_iterations;
 MCNUM mcclogspir_placeholder;
 
+/* Setting parameters for component 'psd_monitor' [6]. */
+int mccpsd_monitor_nx;
+int mccpsd_monitor_ny;
+char mccpsd_monitor_filename[16384];
+MCNUM mccpsd_monitor_xmin;
+MCNUM mccpsd_monitor_xmax;
+MCNUM mccpsd_monitor_ymin;
+MCNUM mccpsd_monitor_ymax;
+MCNUM mccpsd_monitor_xwidth;
+MCNUM mccpsd_monitor_yheight;
+MCNUM mccpsd_monitor_restore_neutron;
+
 /* User component declarations. */
 
 /* User declarations for component 'origin' [1]. */
@@ -7069,7 +7163,7 @@ double IntermediateCnts;
 time_t StartTime;
 time_t EndTime;
 time_t CurrentTime;
-#line 7072 "./test.c"
+#line 7166 "./test.c"
 #undef minutes
 #undef flag_save
 #undef percent
@@ -7116,7 +7210,7 @@ time_t CurrentTime;
 #define flux mccsource_div_flux
 #line 69 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, focus_yh;
-#line 7119 "./test.c"
+#line 7213 "./test.c"
 #undef flux
 #undef gauss
 #undef dlambda
@@ -7305,13 +7399,52 @@ LogSpir logspir;
 Vector2D n;
 Vector2D *ptrn;
 Vector2D normal;
-#line 7308 "./test.c"
+#line 7402 "./test.c"
 #undef placeholder
 #undef max_iterations
 #undef precision
 #undef psi
 #undef zend
 #undef zstart
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+/* User declarations for component 'psd_monitor' [6]. */
+#define mccompcurname  psd_monitor
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 6
+#define PSD_N mccpsd_monitor_PSD_N
+#define PSD_p mccpsd_monitor_PSD_p
+#define PSD_p2 mccpsd_monitor_PSD_p2
+#define nx mccpsd_monitor_nx
+#define ny mccpsd_monitor_ny
+#define filename mccpsd_monitor_filename
+#define xmin mccpsd_monitor_xmin
+#define xmax mccpsd_monitor_xmax
+#define ymin mccpsd_monitor_ymin
+#define ymax mccpsd_monitor_ymax
+#define xwidth mccpsd_monitor_xwidth
+#define yheight mccpsd_monitor_yheight
+#define restore_neutron mccpsd_monitor_restore_neutron
+#line 62 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+  DArray2d PSD_N;
+  DArray2d PSD_p;
+  DArray2d PSD_p2;
+#line 7434 "./test.c"
+#undef restore_neutron
+#undef yheight
+#undef xwidth
+#undef ymax
+#undef ymin
+#undef xmax
+#undef xmin
+#undef filename
+#undef ny
+#undef nx
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -7326,6 +7459,8 @@ Coords mcposaslit, mcposrslit;
 Rotation mcrotaslit, mcrotrslit;
 Coords mcposalogspir, mcposrlogspir;
 Rotation mcrotalogspir, mcrotrlogspir;
+Coords mcposapsd_monitor, mcposrpsd_monitor;
+Rotation mcrotapsd_monitor, mcrotrpsd_monitor;
 
 MCNUM mcnx, mcny, mcnz, mcnvx, mcnvy, mcnvz, mcnt, mcnsx, mcnsy, mcnsz, mcnp;
 
@@ -7373,14 +7508,14 @@ void mcinit(void) {
   mccorigin_flag_save = 0;
 #line 39 "test.instr"
   mccorigin_minutes = 0;
-#line 7376 "./test.c"
+#line 7511 "./test.c"
 
   SIG_MESSAGE("origin (Init:Place/Rotate)");
   rot_set_rotation(mcrotaorigin,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7383 "./test.c"
+#line 7518 "./test.c"
   rot_copy(mcrotrorigin, mcrotaorigin);
   mcposaorigin = coords_set(
 #line 47 "test.instr"
@@ -7389,7 +7524,7 @@ void mcinit(void) {
     0,
 #line 47 "test.instr"
     0);
-#line 7392 "./test.c"
+#line 7527 "./test.c"
   mctc1 = coords_neg(mcposaorigin);
   mcposrorigin = rot_apply(mcrotaorigin, mctc1);
   mcDEBUG_COMPONENT("origin", mcposaorigin, mcrotaorigin)
@@ -7406,7 +7541,7 @@ void mcinit(void) {
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7409 "./test.c"
+#line 7544 "./test.c"
   rot_mul(mctr1, mcrotaorigin, mcrotasource);
   rot_transpose(mcrotaorigin, mctr1);
   rot_mul(mcrotasource, mctr1, mcrotrsource);
@@ -7417,7 +7552,7 @@ void mcinit(void) {
     0,
 #line 51 "test.instr"
     0);
-#line 7420 "./test.c"
+#line 7555 "./test.c"
   rot_transpose(mcrotaorigin, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource = coords_add(mcposaorigin, mctc2);
@@ -7451,14 +7586,14 @@ void mcinit(void) {
   mccsource_div_gauss = 0;
 #line 60 "test.instr"
   mccsource_div_flux = mcipflux;
-#line 7454 "./test.c"
+#line 7589 "./test.c"
 
   SIG_MESSAGE("source_div (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7461 "./test.c"
+#line 7596 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotasource_div);
   rot_transpose(mcrotasource, mctr1);
   rot_mul(mcrotasource_div, mctr1, mcrotrsource_div);
@@ -7469,7 +7604,7 @@ void mcinit(void) {
     0,
 #line 62 "test.instr"
     0);
-#line 7472 "./test.c"
+#line 7607 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource_div = coords_add(mcposasource, mctc2);
@@ -7497,14 +7632,14 @@ void mcinit(void) {
   mccslit_xwidth = 0;
 #line 46 "test.instr"
   mccslit_yheight = 0;
-#line 7500 "./test.c"
+#line 7635 "./test.c"
 
   SIG_MESSAGE("slit (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7507 "./test.c"
+#line 7642 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotaslit);
   rot_transpose(mcrotasource_div, mctr1);
   rot_mul(mcrotaslit, mctr1, mcrotrslit);
@@ -7515,7 +7650,7 @@ void mcinit(void) {
     0,
 #line 67 "test.instr"
     0);
-#line 7518 "./test.c"
+#line 7653 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposaslit = coords_add(mcposasource, mctc2);
@@ -7541,14 +7676,14 @@ void mcinit(void) {
   mcclogspir_max_iterations = 10;
 #line 43 "test.instr"
   mcclogspir_placeholder = 0;
-#line 7544 "./test.c"
+#line 7679 "./test.c"
 
   SIG_MESSAGE("logspir (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7551 "./test.c"
+#line 7686 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotalogspir);
   rot_transpose(mcrotaslit, mctr1);
   rot_mul(mcrotalogspir, mctr1, mcrotrlogspir);
@@ -7559,7 +7694,7 @@ void mcinit(void) {
     0,
 #line 70 "test.instr"
     0);
-#line 7562 "./test.c"
+#line 7697 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposalogspir = coords_add(mcposasource, mctc2);
@@ -7570,6 +7705,58 @@ void mcinit(void) {
   mccomp_posr[5] = mcposrlogspir;
   mcNCounter[5]  = mcPCounter[5] = mcP2Counter[5] = 0;
   mcAbsorbProp[5]= 0;
+    /* Component psd_monitor. */
+  /* Setting parameters for component psd_monitor. */
+  SIG_MESSAGE("psd_monitor (Init:SetPar)");
+#line 73 "test.instr"
+  mccpsd_monitor_nx = 100;
+#line 74 "test.instr"
+  mccpsd_monitor_ny = 100;
+#line 75 "test.instr"
+  if("psdafterlog.dat") strncpy(mccpsd_monitor_filename, "psdafterlog.dat" ? "psdafterlog.dat" : "", 16384); else mccpsd_monitor_filename[0]='\0';
+#line 50 "test.instr"
+  mccpsd_monitor_xmin = -0.05;
+#line 50 "test.instr"
+  mccpsd_monitor_xmax = 0.05;
+#line 50 "test.instr"
+  mccpsd_monitor_ymin = -0.05;
+#line 50 "test.instr"
+  mccpsd_monitor_ymax = 0.05;
+#line 76 "test.instr"
+  mccpsd_monitor_xwidth = 1;
+#line 77 "test.instr"
+  mccpsd_monitor_yheight = 1;
+#line 78 "test.instr"
+  mccpsd_monitor_restore_neutron = 1;
+#line 7731 "./test.c"
+
+  SIG_MESSAGE("psd_monitor (Init:Place/Rotate)");
+  rot_set_rotation(mctr1,
+    (0.0)*DEG2RAD,
+    (0.0)*DEG2RAD,
+    (0.0)*DEG2RAD);
+#line 7738 "./test.c"
+  rot_mul(mctr1, mcrotalogspir, mcrotapsd_monitor);
+  rot_transpose(mcrotalogspir, mctr1);
+  rot_mul(mcrotapsd_monitor, mctr1, mcrotrpsd_monitor);
+  mctc1 = coords_set(
+#line 79 "test.instr"
+    0,
+#line 79 "test.instr"
+    0,
+#line 79 "test.instr"
+    6);
+#line 7749 "./test.c"
+  rot_transpose(mcrotalogspir, mctr1);
+  mctc2 = rot_apply(mctr1, mctc1);
+  mcposapsd_monitor = coords_add(mcposalogspir, mctc2);
+  mctc1 = coords_sub(mcposalogspir, mcposapsd_monitor);
+  mcposrpsd_monitor = rot_apply(mcrotapsd_monitor, mctc1);
+  mcDEBUG_COMPONENT("psd_monitor", mcposapsd_monitor, mcrotapsd_monitor)
+  mccomp_posa[6] = mcposapsd_monitor;
+  mccomp_posr[6] = mcposrpsd_monitor;
+  mcNCounter[6]  = mcPCounter[6] = mcP2Counter[6] = 0;
+  mcAbsorbProp[6]= 0;
   /* Component initializations. */
   /* Initializations for component origin. */
   SIG_MESSAGE("origin (Init)");
@@ -7596,7 +7783,7 @@ fprintf(stdout, "[%s] Initialize\n", mcinstrument_name);
     percent=1e5*100.0/mcget_ncount();
   }
 }
-#line 7599 "./test.c"
+#line 7786 "./test.c"
 #undef minutes
 #undef flag_save
 #undef percent
@@ -7683,7 +7870,7 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
   else if (dE)
     p_init *= 2*dE;
 }
-#line 7686 "./test.c"
+#line 7873 "./test.c"
 #undef flux
 #undef gauss
 #undef dlambda
@@ -7740,7 +7927,7 @@ if (xwidth > 0)  {
     { fprintf(stderr,"Slit: %s: Warning: Running with CLOSED slit - is this intentional?? \n", NAME_CURRENT_COMP); }
 
 }
-#line 7743 "./test.c"
+#line 7930 "./test.c"
 #undef yheight
 #undef xwidth
 #undef radius
@@ -7784,13 +7971,74 @@ if (xwidth > 0)  {
 	logspir.theta_end = return_precise_theta_end(logspir, max_iterations);
 	printf("theta_end%f", logspir.theta_end);
 }
-#line 7787 "./test.c"
+#line 7974 "./test.c"
 #undef placeholder
 #undef max_iterations
 #undef precision
 #undef psi
 #undef zend
 #undef zstart
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+  /* Initializations for component psd_monitor. */
+  SIG_MESSAGE("psd_monitor (Init)");
+#define mccompcurname  psd_monitor
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 6
+#define PSD_N mccpsd_monitor_PSD_N
+#define PSD_p mccpsd_monitor_PSD_p
+#define PSD_p2 mccpsd_monitor_PSD_p2
+#define nx mccpsd_monitor_nx
+#define ny mccpsd_monitor_ny
+#define filename mccpsd_monitor_filename
+#define xmin mccpsd_monitor_xmin
+#define xmax mccpsd_monitor_xmax
+#define ymin mccpsd_monitor_ymin
+#define ymax mccpsd_monitor_ymax
+#define xwidth mccpsd_monitor_xwidth
+#define yheight mccpsd_monitor_yheight
+#define restore_neutron mccpsd_monitor_restore_neutron
+#line 68 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+{
+  if (xwidth  > 0) { xmax = xwidth/2;  xmin = -xmax; }
+  if (yheight > 0) { ymax = yheight/2; ymin = -ymax; }
+
+  if ((xmin >= xmax) || (ymin >= ymax)){
+    printf("PSD_monitor: %s: Null detection area !\n"
+           "ERROR        (xwidth,yheight,xmin,xmax,ymin,ymax). Exiting",
+    NAME_CURRENT_COMP);
+    exit(-1);
+  }
+
+  PSD_N = create_darr2d(nx, ny);
+  PSD_p = create_darr2d(nx, ny);
+  PSD_p2 = create_darr2d(nx, ny);
+
+  int i, j;
+  for (i=0; i<nx; i++){
+    for (j=0; j<ny; j++){
+      PSD_N[i][j] = 0;
+      PSD_p[i][j] = 0;
+      PSD_p2[i][j] = 0;
+    }
+  }
+}
+#line 8028 "./test.c"
+#undef restore_neutron
+#undef yheight
+#undef xwidth
+#undef ymax
+#undef ymin
+#undef xmax
+#undef xmin
+#undef filename
+#undef ny
+#undef nx
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -7948,7 +8196,7 @@ MCNUM minutes = mccorigin_minutes;
     if (flag_save) mcsave(NULL);
   }
 }
-#line 7951 "./test.c"
+#line 8199 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8229,7 +8477,7 @@ MCNUM flux = mccsource_div_flux;
   vy = tan_v * vz;
   vx = tan_h * vz;
 }
-#line 8232 "./test.c"
+#line 8480 "./test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -8363,7 +8611,7 @@ MCNUM yheight = mccslit_yheight;
     else
         SCATTER;
 }
-#line 8366 "./test.c"
+#line 8614 "./test.c"
 }   /* End of slit=Slit() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8481,6 +8729,7 @@ MCNUM placeholder = mcclogspir_placeholder;
   PROP_Z0;
   Neutron2Dinit(ptrn, z, x, vz, vx);
   theta_int = return_precise_theta_int(logspir, *ptrn, max_iterations);
+  printf("theta int %f\n", theta_int);
   if (theta_int<0){
 	ABSORB;
   };
@@ -8492,7 +8741,7 @@ MCNUM placeholder = mcclogspir_placeholder;
 
 
 }
-#line 8495 "./test.c"
+#line 8744 "./test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8501,6 +8750,143 @@ MCNUM placeholder = mcclogspir_placeholder;
   mcabsorbComplogspir:
   if (RESTORE) /* restore if needed */
   { RESTORE_NEUTRON(5,
+      mcnlx,
+      mcnly,
+      mcnlz,
+      mcnlvx,
+      mcnlvy,
+      mcnlvz,
+      mcnlt,
+      mcnlsx,
+      mcnlsy,
+      mcnlsz,
+      mcnlp); }
+#undef mcabsorbComp
+#undef p
+#undef sz
+#undef sy
+#undef sx
+#undef t
+#undef vz
+#undef vy
+#undef vx
+#undef z
+#undef y
+#undef x
+  mcDEBUG_STATE(
+mcnlx,
+mcnly,
+mcnlz,
+mcnlvx,
+mcnlvy,
+mcnlvz,
+mcnlt,
+mcnlsx,
+mcnlsy,
+mcnlsz,
+mcnlp)
+
+  /* TRACE Component psd_monitor [6] */
+  mccoordschange(mcposrpsd_monitor, mcrotrpsd_monitor,
+    &mcnlx,
+    &mcnly,
+    &mcnlz,
+    &mcnlvx,
+    &mcnlvy,
+    &mcnlvz,
+    &mcnlsx,
+    &mcnlsy,
+    &mcnlsz);
+  /* define label inside component psd_monitor (without coords transformations) */
+  mcJumpTrace_psd_monitor:
+  SIG_MESSAGE("psd_monitor (Trace)");
+  mcDEBUG_COMP("psd_monitor")
+  mcDEBUG_STATE(
+    mcnlx,
+    mcnly,
+    mcnlz,
+    mcnlvx,
+    mcnlvy,
+    mcnlvz,
+    mcnlt,
+    mcnlsx,
+    mcnlsy,
+    mcnlsz,
+    mcnlp)
+#define x mcnlx
+#define y mcnly
+#define z mcnlz
+#define vx mcnlvx
+#define vy mcnlvy
+#define vz mcnlvz
+#define t mcnlt
+#define sx mcnlsx
+#define sy mcnlsy
+#define sz mcnlsz
+#define p mcnlp
+
+#define mcabsorbComp mcabsorbComppsd_monitor
+  STORE_NEUTRON(6,
+    mcnlx,
+    mcnly,
+    mcnlz,
+    mcnlvx,
+    mcnlvy,
+    mcnlvz,
+    mcnlt,
+    mcnlsx,
+    mcnlsy,
+    mcnlsz,
+    mcnlp);
+  mcScattered=0;
+  mcRestore=0;
+  mcNCounter[6]++;
+  mcPCounter[6] += p;
+  mcP2Counter[6] += p*p;
+#define mccompcurname  psd_monitor
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 6
+#define PSD_N mccpsd_monitor_PSD_N
+#define PSD_p mccpsd_monitor_PSD_p
+#define PSD_p2 mccpsd_monitor_PSD_p2
+{   /* Declarations of psd_monitor=PSD_monitor() SETTING parameters. */
+int nx = mccpsd_monitor_nx;
+int ny = mccpsd_monitor_ny;
+char* filename = mccpsd_monitor_filename;
+MCNUM xmin = mccpsd_monitor_xmin;
+MCNUM xmax = mccpsd_monitor_xmax;
+MCNUM ymin = mccpsd_monitor_ymin;
+MCNUM ymax = mccpsd_monitor_ymax;
+MCNUM xwidth = mccpsd_monitor_xwidth;
+MCNUM yheight = mccpsd_monitor_yheight;
+MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
+#line 94 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+{
+  PROP_Z0;
+  if (x>xmin && x<xmax && y>ymin && y<ymax){
+    int i = floor((x - xmin)*nx/(xmax - xmin));
+    int j = floor((y - ymin)*ny/(ymax - ymin));
+    PSD_N[i][j]++;
+    PSD_p[i][j] += p;
+    PSD_p2[i][j] += p*p;
+    SCATTER;
+  }
+  if (restore_neutron) {
+    RESTORE_NEUTRON(INDEX_CURRENT_COMP, x, y, z, vx, vy, vz, t, sx, sy, sz, p);
+  }
+}
+#line 8878 "./test.c"
+}   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+  /* Label for restoring  neutron */
+  mcabsorbComppsd_monitor:
+  if (RESTORE) /* restore if needed */
+  { RESTORE_NEUTRON(6,
       mcnlx,
       mcnly,
       mcnlz,
@@ -8601,12 +8987,51 @@ MCNUM minutes = mccorigin_minutes;
 
   }
 }
-#line 8604 "./test.c"
+#line 8990 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
 #undef StartTime
 #undef IntermediateCnts
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+  /* User SAVE code for component 'psd_monitor'. */
+  SIG_MESSAGE("psd_monitor (Save)");
+#define mccompcurname  psd_monitor
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 6
+#define PSD_N mccpsd_monitor_PSD_N
+#define PSD_p mccpsd_monitor_PSD_p
+#define PSD_p2 mccpsd_monitor_PSD_p2
+{   /* Declarations of psd_monitor=PSD_monitor() SETTING parameters. */
+int nx = mccpsd_monitor_nx;
+int ny = mccpsd_monitor_ny;
+char* filename = mccpsd_monitor_filename;
+MCNUM xmin = mccpsd_monitor_xmin;
+MCNUM xmax = mccpsd_monitor_xmax;
+MCNUM ymin = mccpsd_monitor_ymin;
+MCNUM ymax = mccpsd_monitor_ymax;
+MCNUM xwidth = mccpsd_monitor_xwidth;
+MCNUM yheight = mccpsd_monitor_yheight;
+MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
+#line 110 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+{
+  DETECTOR_OUT_2D(
+    "PSD monitor",
+    "X position [cm]",
+    "Y position [cm]",
+    xmin*100.0, xmax*100.0, ymin*100.0, ymax*100.0,
+    nx, ny,
+    &PSD_N[0][0],&PSD_p[0][0],&PSD_p2[0][0],
+    filename);
+}
+#line 9030 "./test.c"
+}   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -8645,7 +9070,7 @@ MCNUM minutes = mccorigin_minutes;
     fprintf(stdout, "%g [min] ", difftime(NowTime,StartTime)/60.0);
   fprintf(stdout, "\n");
 }
-#line 8648 "./test.c"
+#line 9073 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8670,6 +9095,43 @@ MCNUM minutes = mccorigin_minutes;
     if (!mcNCounter[5]) fprintf(stderr, "Warning: No neutron could reach Component[5] logspir\n");
     if (mcAbsorbProp[5]) fprintf(stderr, "Warning: %g events were removed in Component[5] logspir=LogSpiral()\n"
 "         (negative time, miss next components, rounding errors, Nan, Inf).\n", mcAbsorbProp[5]);
+  /* User FINALLY code for component 'psd_monitor'. */
+  SIG_MESSAGE("psd_monitor (Finally)");
+#define mccompcurname  psd_monitor
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 6
+#define PSD_N mccpsd_monitor_PSD_N
+#define PSD_p mccpsd_monitor_PSD_p
+#define PSD_p2 mccpsd_monitor_PSD_p2
+{   /* Declarations of psd_monitor=PSD_monitor() SETTING parameters. */
+int nx = mccpsd_monitor_nx;
+int ny = mccpsd_monitor_ny;
+char* filename = mccpsd_monitor_filename;
+MCNUM xmin = mccpsd_monitor_xmin;
+MCNUM xmax = mccpsd_monitor_xmax;
+MCNUM ymin = mccpsd_monitor_ymin;
+MCNUM ymax = mccpsd_monitor_ymax;
+MCNUM xwidth = mccpsd_monitor_xwidth;
+MCNUM yheight = mccpsd_monitor_yheight;
+MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
+#line 122 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+{
+  destroy_darr2d(PSD_N);
+  destroy_darr2d(PSD_p);
+  destroy_darr2d(PSD_p2);
+}
+#line 9118 "./test.c"
+}   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+    if (!mcNCounter[6]) fprintf(stderr, "Warning: No neutron could reach Component[6] psd_monitor\n");
+    if (mcAbsorbProp[6]) fprintf(stderr, "Warning: %g events were removed in Component[6] psd_monitor=PSD_monitor()\n"
+"         (negative time, miss next components, rounding errors, Nan, Inf).\n", mcAbsorbProp[6]);
   mcsiminfo_close(); 
 } /* end finally */
 #define magnify mcdis_magnify
@@ -8704,7 +9166,7 @@ MCNUM minutes = mccorigin_minutes;
 {
   
 }
-#line 8702 "./test.c"
+#line 9163 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8728,7 +9190,7 @@ MCNUM minutes = mccorigin_minutes;
   line(0,0,0,0,0.2,0);
   line(0,0,0,0,0,0.2);
 }
-#line 8726 "./test.c"
+#line 9187 "./test.c"
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -8775,7 +9237,7 @@ MCNUM flux = mccsource_div_flux;
     dashed_line(0,0,0, -focus_xw/2, focus_yh/2,dist, 4);
   }
 }
-#line 8773 "./test.c"
+#line 9234 "./test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -8828,7 +9290,7 @@ MCNUM yheight = mccslit_yheight;
     circle("xy",0,0,0,radius);
   }
 }
-#line 8826 "./test.c"
+#line 9287 "./test.c"
 }   /* End of slit=Slit() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8847,13 +9309,51 @@ MCNUM psi = mcclogspir_psi;
 MCNUM precision = mcclogspir_precision;
 MCNUM max_iterations = mcclogspir_max_iterations;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 240 "LogSpiral.comp"
+#line 241 "LogSpiral.comp"
 {
 
 
 }
-#line 8850 "./test.c"
+#line 9311 "./test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+  /* MCDISPLAY code for component 'psd_monitor'. */
+  SIG_MESSAGE("psd_monitor (McDisplay)");
+  printf("MCDISPLAY: component %s\n", "psd_monitor");
+#define mccompcurname  psd_monitor
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 6
+#define PSD_N mccpsd_monitor_PSD_N
+#define PSD_p mccpsd_monitor_PSD_p
+#define PSD_p2 mccpsd_monitor_PSD_p2
+{   /* Declarations of psd_monitor=PSD_monitor() SETTING parameters. */
+int nx = mccpsd_monitor_nx;
+int ny = mccpsd_monitor_ny;
+char* filename = mccpsd_monitor_filename;
+MCNUM xmin = mccpsd_monitor_xmin;
+MCNUM xmax = mccpsd_monitor_xmax;
+MCNUM ymin = mccpsd_monitor_ymin;
+MCNUM ymax = mccpsd_monitor_ymax;
+MCNUM xwidth = mccpsd_monitor_xwidth;
+MCNUM yheight = mccpsd_monitor_yheight;
+MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
+#line 129 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+{
+  multiline(5,
+    (double)xmin, (double)ymin, 0.0,
+    (double)xmax, (double)ymin, 0.0,
+    (double)xmax, (double)ymax, 0.0,
+    (double)xmin, (double)ymax, 0.0,
+    (double)xmin, (double)ymin, 0.0);
+}
+#line 9346 "./test.c"
+}   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex

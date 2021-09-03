@@ -219,6 +219,7 @@ TRACE
   PROP_Z0;
   Neutron2Dinit(ptrn, z, x, vz, vx);
   theta_int = return_precise_theta_int(logspir, *ptrn, max_iterations);
+  printf("theta int %f\n", theta_int);
   if (theta_int<0){
 	ABSORB;
   };
