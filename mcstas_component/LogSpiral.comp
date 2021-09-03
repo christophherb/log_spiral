@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* McStas, neutron ray-tracing package
+* McStas, Vector2D ray-tracing package
 *         Copyright (C) 1997-2011, All rights reserved
 *         Risoe National Laboratory, Roskilde, Denmark
 *         Institut Laue Langevin, Grenoble, France
@@ -56,11 +56,11 @@ SHARE
 
 DECLARE
 %{
+double dt; // time to propagate the neutron onto the mirror surface
 	///////////////////////////////////////////////////////////////////////////
 /////////////// Some Structures
 ///////////////////////////////////////////////////////////////////////////
-struct LogSpir
-{
+typedef struct LogSpir{
     double zstart;
     double zend;
     double psi;
@@ -69,24 +69,24 @@ struct LogSpir
     double precision;
     double theta_end;
     double x_end;
-};//logspiral will be our surface to reflect from; nice
+} LogSpir;//logspiral will be our surface to reflect from; nice
 
-struct Neutron{
+typedef struct Vector2D{
 	double z;
 	double x;
 	double vz;
 	double vx;
-};//Structure for a 2D neutron
+} Vector2D;//Structure for a 2D Vector2D
 
 
 
 ///////////////////////////////////////////////////////////////////////////
 /////////////// Collision handling functions
 ///////////////////////////////////////////////////////////////////////////
-double newton_theta_end(struct LogSpir logspir, double theta){
+double newton_theta_end(LogSpir logspir, double theta){
 	return cos(theta)*logspir.zstart*exp(logspir.k*theta)-logspir.zend;
 }
-double newton_theta_end_derivative(struct LogSpir logspir, double theta){
+double newton_theta_end_derivative(LogSpir logspir, double theta){
 	return logspir.zstart*exp(logspir.k*theta)*(cos(theta)*logspir.k-sin(theta));
 }
 
@@ -94,20 +94,20 @@ double return_r(double theta, double k, double zstart){
     return zstart*exp(k*theta);
 };
 
-struct Neutron return_cart_coordsspiral(struct LogSpir logspir, double theta){
-	struct Neutron n;
+Vector2D return_cart_coordsspiral(LogSpir logspir, double theta){
+	struct Vector2D n;
 	double r = return_r(theta, logspir.k, logspir.zstart);
 	n.z = cos(theta)*r;
 	n.x = sin(theta)*r;
 	return n;
 }
 
-double return_approx_theta_end(struct LogSpir logspir){
+double return_approx_theta_end(LogSpir logspir){
 	printf("logspir k %f\n", logspir.k);
     return log(logspir.zend/logspir.zstart)/logspir.k;
 };
 
-double return_precise_theta_end(struct LogSpir logspir, int max_iterations){
+double return_precise_theta_end(LogSpir logspir, int max_iterations){
 	double theta_0 = return_approx_theta_end(logspir);
 	double theta_n;
 	for (int ii; ii < max_iterations; ii++){
@@ -121,15 +121,65 @@ double return_precise_theta_end(struct LogSpir logspir, int max_iterations){
 	return -10.0;
 }
 
+double return_approx_theta_int(LogSpir logspir){//approximating by intersection with line seems comp expensive + if the intersection is far away
+	return logspir.theta_end/2;
+}
+
+double return_precise_theta_int(LogSpir logspir, Vector2D n, double max_iterations){//
+	double theta_0, theta_n;
+	double m = n.vx/n.vz;
+	double x0 = n.x-n.z/n.vz*n.vx;
+	double f(double theta){
+		return logspir.zstart*exp(logspir.k*theta)*(sin(theta)-m*cos(theta))-x0;
+	}
+	double f_derivative(double theta){
+		return logspir.zstart*exp(logspir.k*theta)*(cos(theta)*(1-logspir.k*m)+ sin(theta)*(logspir.k+m));
+	}
+	theta_0 = return_approx_theta_int(logspir);
+	for (int ii; ii<max_iterations; ii++ ){
+		theta_n = theta_0-f(theta_0)/f_derivative(theta_0);
+		if (fabs(theta_n-theta_0)<logspir.precision){
+			if ((0<theta_n)&&(theta_n<logspir.theta_end)){
+				return theta_n;
+			}
+			return -10;
+		}
+		theta_0 = theta_n;
 
 
+	}
+	return -10;
+}
+
+Vector2D return_normal_vec(LogSpir logspir, double theta){//returns the normalized normal vector to the surface
+	Vector2D n2d;
+	double k = logspir.k;
+	double prefac = 1/sqrt(1+k*k);
+	n2d.vz = (cos(theta)+k*sin(theta))*prefac;
+	n2d.vx = (sin(theta)-k*cos(theta))*prefac;
+	return n2d;
+}
+
+void reflected_direction(Vector2D normal, Vector2D *neutron){
+	double vdotn = neutron->vz*normal.vz + neutron->vx*normal.vx;
+	neutron->vx = neutron->vx-2*vdotn*normal.vx;
+	neutron->vz = neutron->vz-2*vdotn*normal.vz;
+}
+
+double return_time_first_interaction(LogSpir logspir, Vector2D n, double max_iterations){
+	double theta_int = return_precise_theta_int(logspir, n, max_iterations);
+	double z_int = cos(theta_int)*return_r(theta_int, logspir.k, logspir.zstart);
+	return z_int/n.vz;
+}
 
 
 ///////////////////////////////////////////////////////////////////////////
 /////////////// End of functions
 ///////////////////////////////////////////////////////////////////////////
-
-
+//Vector2D n;
+LogSpir logspir;
+double dt;
+Vector2D *n; 
 %}
 
 INITIALIZE
@@ -141,7 +191,7 @@ INITIALIZE
 	///////////////////////////////////////////////////////////////////////////
 	/////////////// Initialize the logarithmic spiral
 	///////////////////////////////////////////////////////////////////////////
-	struct LogSpir logspir;
+
 	logspir.zstart=zstart;
 	logspir.zend = zend;
 	logspir.psi = psi;
@@ -151,6 +201,8 @@ INITIALIZE
 	printf("a theta end %f \n", return_approx_theta_end(logspir));
 	logspir.theta_end = return_precise_theta_end(logspir, max_iterations);
 	printf("theta_end%f", logspir.theta_end);
+	n->x = 12;
+	n->z = 2;
 %}
 
 	// Test user input for illegal values
@@ -158,6 +210,13 @@ INITIALIZE
 TRACE
 %{
   PROP_Z0;
+  n->x = 12.2;
+  //n->z = z;
+  //n->vx = vx;
+  //n->vz = vz;
+  dt = return_time_first_interaction(logspir, *n, max_iterations);
+
+  PROP_DT(dt);
   SCATTER;
 
 
