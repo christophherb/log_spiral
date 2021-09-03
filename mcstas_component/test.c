@@ -2,7 +2,7 @@
  * Format:     ANSI C source code
  * Creator:    McStas <http://www.mcstas.org>
  * Instrument: test.instr (logspir_test)
- * Date:       Fri Sep  3 14:17:35 2021
+ * Date:       Fri Sep  3 15:09:55 2021
  * File:       ./test.c
  * Compile:    cc -o logspir_test.out ./test.c 
  * CFLAGS=
@@ -7196,7 +7196,7 @@ typedef struct Vector2D{
 	double vx;
 } Vector2D;//Structure for a 2D Vector2D
 
-void Neutron2Dinit(Vector2D *neutron, MCNUM z, MCNUM x, MCNUM vz, MCNUM vx){
+void Neutron2Dinit(Vector2D *neutron, double z, double x, double vz, double vx){
 	neutron->z = z;
 	neutron->x = x;
 	neutron->vz = vz;
@@ -7283,16 +7283,15 @@ Vector2D return_normal_vec(LogSpir logspir, double theta){//returns the normaliz
 	return n2d;
 }
 
-void reflected_direction(Vector2D normal, Vector2D *neutron){
-	double vdotn = neutron->vz*normal.vz + neutron->vx*normal.vx;
-	neutron->vx = neutron->vx-2*vdotn*normal.vx;
-	neutron->vz = neutron->vz-2*vdotn*normal.vz;
+void reflected_direction(Vector2D normal, double *z, double *x, double *vz, double *vx){
+	double vdotn = (*vz)*normal.vz + (*vx)*normal.vx;
+	(*vx) = (*vx)-2*vdotn*normal.vx;
+	(*vz) = (*vz)-2*vdotn*normal.vz;
 }
 
-double return_time_first_interaction(LogSpir logspir, Vector2D n, double max_iterations){
-	double theta_int = return_precise_theta_int(logspir, n, max_iterations);
+double return_time_first_interaction(LogSpir logspir, double theta_int, Vector2D *n){
 	double z_int = cos(theta_int)*return_r(theta_int, logspir.k, logspir.zstart);
-	return z_int/n.vz;
+	return z_int/n->vz;
 }
 
 
@@ -7300,10 +7299,13 @@ double return_time_first_interaction(LogSpir logspir, Vector2D n, double max_ite
 /////////////// End of functions
 ///////////////////////////////////////////////////////////////////////////
 //Vector2D n;
-LogSpir logspir;
 double dt;
-Vector2D *n; 
-#line 7306 "./test.c"
+double theta_int;
+LogSpir logspir;
+Vector2D n;
+Vector2D *ptrn;
+Vector2D normal;
+#line 7308 "./test.c"
 #undef placeholder
 #undef max_iterations
 #undef precision
@@ -7371,14 +7373,14 @@ void mcinit(void) {
   mccorigin_flag_save = 0;
 #line 39 "test.instr"
   mccorigin_minutes = 0;
-#line 7374 "./test.c"
+#line 7376 "./test.c"
 
   SIG_MESSAGE("origin (Init:Place/Rotate)");
   rot_set_rotation(mcrotaorigin,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7381 "./test.c"
+#line 7383 "./test.c"
   rot_copy(mcrotrorigin, mcrotaorigin);
   mcposaorigin = coords_set(
 #line 47 "test.instr"
@@ -7387,7 +7389,7 @@ void mcinit(void) {
     0,
 #line 47 "test.instr"
     0);
-#line 7390 "./test.c"
+#line 7392 "./test.c"
   mctc1 = coords_neg(mcposaorigin);
   mcposrorigin = rot_apply(mcrotaorigin, mctc1);
   mcDEBUG_COMPONENT("origin", mcposaorigin, mcrotaorigin)
@@ -7404,7 +7406,7 @@ void mcinit(void) {
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7407 "./test.c"
+#line 7409 "./test.c"
   rot_mul(mctr1, mcrotaorigin, mcrotasource);
   rot_transpose(mcrotaorigin, mctr1);
   rot_mul(mcrotasource, mctr1, mcrotrsource);
@@ -7415,7 +7417,7 @@ void mcinit(void) {
     0,
 #line 51 "test.instr"
     0);
-#line 7418 "./test.c"
+#line 7420 "./test.c"
   rot_transpose(mcrotaorigin, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource = coords_add(mcposaorigin, mctc2);
@@ -7449,14 +7451,14 @@ void mcinit(void) {
   mccsource_div_gauss = 0;
 #line 60 "test.instr"
   mccsource_div_flux = mcipflux;
-#line 7452 "./test.c"
+#line 7454 "./test.c"
 
   SIG_MESSAGE("source_div (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7459 "./test.c"
+#line 7461 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotasource_div);
   rot_transpose(mcrotasource, mctr1);
   rot_mul(mcrotasource_div, mctr1, mcrotrsource_div);
@@ -7467,7 +7469,7 @@ void mcinit(void) {
     0,
 #line 62 "test.instr"
     0);
-#line 7470 "./test.c"
+#line 7472 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource_div = coords_add(mcposasource, mctc2);
@@ -7495,14 +7497,14 @@ void mcinit(void) {
   mccslit_xwidth = 0;
 #line 46 "test.instr"
   mccslit_yheight = 0;
-#line 7498 "./test.c"
+#line 7500 "./test.c"
 
   SIG_MESSAGE("slit (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7505 "./test.c"
+#line 7507 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotaslit);
   rot_transpose(mcrotasource_div, mctr1);
   rot_mul(mcrotaslit, mctr1, mcrotrslit);
@@ -7513,7 +7515,7 @@ void mcinit(void) {
     0,
 #line 67 "test.instr"
     0);
-#line 7516 "./test.c"
+#line 7518 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposaslit = coords_add(mcposasource, mctc2);
@@ -7539,14 +7541,14 @@ void mcinit(void) {
   mcclogspir_max_iterations = 10;
 #line 43 "test.instr"
   mcclogspir_placeholder = 0;
-#line 7542 "./test.c"
+#line 7544 "./test.c"
 
   SIG_MESSAGE("logspir (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7549 "./test.c"
+#line 7551 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotalogspir);
   rot_transpose(mcrotaslit, mctr1);
   rot_mul(mcrotalogspir, mctr1, mcrotrlogspir);
@@ -7557,7 +7559,7 @@ void mcinit(void) {
     0,
 #line 70 "test.instr"
     0);
-#line 7560 "./test.c"
+#line 7562 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposalogspir = coords_add(mcposasource, mctc2);
@@ -7594,7 +7596,7 @@ fprintf(stdout, "[%s] Initialize\n", mcinstrument_name);
     percent=1e5*100.0/mcget_ncount();
   }
 }
-#line 7597 "./test.c"
+#line 7599 "./test.c"
 #undef minutes
 #undef flag_save
 #undef percent
@@ -7681,7 +7683,7 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
   else if (dE)
     p_init *= 2*dE;
 }
-#line 7684 "./test.c"
+#line 7686 "./test.c"
 #undef flux
 #undef gauss
 #undef dlambda
@@ -7738,7 +7740,7 @@ if (xwidth > 0)  {
     { fprintf(stderr,"Slit: %s: Warning: Running with CLOSED slit - is this intentional?? \n", NAME_CURRENT_COMP); }
 
 }
-#line 7741 "./test.c"
+#line 7743 "./test.c"
 #undef yheight
 #undef xwidth
 #undef radius
@@ -7761,8 +7763,9 @@ if (xwidth > 0)  {
 #define precision mcclogspir_precision
 #define max_iterations mcclogspir_max_iterations
 #define placeholder mcclogspir_placeholder
-#line 191 "LogSpiral.comp"
+#line 193 "LogSpiral.comp"
 {
+	ptrn = &n;
     double psi_rad;//=psi*DEG2RAD;
     double k;//=arctan(psi_rad);
     double theta_end;
@@ -7780,10 +7783,8 @@ if (xwidth > 0)  {
 	printf("a theta end %f \n", return_approx_theta_end(logspir));
 	logspir.theta_end = return_precise_theta_end(logspir, max_iterations);
 	printf("theta_end%f", logspir.theta_end);
-	n->x = 12;
-	n->z = 2;
 }
-#line 7786 "./test.c"
+#line 7787 "./test.c"
 #undef placeholder
 #undef max_iterations
 #undef precision
@@ -7947,7 +7948,7 @@ MCNUM minutes = mccorigin_minutes;
     if (flag_save) mcsave(NULL);
   }
 }
-#line 7950 "./test.c"
+#line 7951 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8228,7 +8229,7 @@ MCNUM flux = mccsource_div_flux;
   vy = tan_v * vz;
   vx = tan_h * vz;
 }
-#line 8231 "./test.c"
+#line 8232 "./test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -8362,7 +8363,7 @@ MCNUM yheight = mccslit_yheight;
     else
         SCATTER;
 }
-#line 8365 "./test.c"
+#line 8366 "./test.c"
 }   /* End of slit=Slit() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8474,22 +8475,24 @@ MCNUM psi = mcclogspir_psi;
 MCNUM precision = mcclogspir_precision;
 MCNUM max_iterations = mcclogspir_max_iterations;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 216 "LogSpiral.comp"
+#line 217 "LogSpiral.comp"
 {
-  Neutron2Dinit(n, z, x, vz, vx);
-
+  
   PROP_Z0;
-  //n->z = z;
-  //n->vx = vx;
-  //n->vz = vz;
-  dt = return_time_first_interaction(logspir, *n, max_iterations);
-
+  Neutron2Dinit(ptrn, z, x, vz, vx);
+  theta_int = return_precise_theta_int(logspir, *ptrn, max_iterations);
+  if (theta_int<0){
+	ABSORB;
+  };
+  normal = return_normal_vec(logspir, theta_int);
+  dt = return_time_first_interaction(logspir, theta_int, ptrn);
   PROP_DT(dt);
+  reflected_direction(normal, &z, &x, &vz, &vx);  
   SCATTER;
 
 
 }
-#line 8492 "./test.c"
+#line 8495 "./test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8598,7 +8601,7 @@ MCNUM minutes = mccorigin_minutes;
 
   }
 }
-#line 8601 "./test.c"
+#line 8604 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8642,7 +8645,7 @@ MCNUM minutes = mccorigin_minutes;
     fprintf(stdout, "%g [min] ", difftime(NowTime,StartTime)/60.0);
   fprintf(stdout, "\n");
 }
-#line 8645 "./test.c"
+#line 8648 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8701,7 +8704,7 @@ MCNUM minutes = mccorigin_minutes;
 {
   
 }
-#line 8699 "./test.c"
+#line 8702 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8725,7 +8728,7 @@ MCNUM minutes = mccorigin_minutes;
   line(0,0,0,0,0.2,0);
   line(0,0,0,0,0,0.2);
 }
-#line 8723 "./test.c"
+#line 8726 "./test.c"
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -8772,7 +8775,7 @@ MCNUM flux = mccsource_div_flux;
     dashed_line(0,0,0, -focus_xw/2, focus_yh/2,dist, 4);
   }
 }
-#line 8770 "./test.c"
+#line 8773 "./test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -8825,7 +8828,7 @@ MCNUM yheight = mccslit_yheight;
     circle("xy",0,0,0,radius);
   }
 }
-#line 8823 "./test.c"
+#line 8826 "./test.c"
 }   /* End of slit=Slit() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8844,12 +8847,12 @@ MCNUM psi = mcclogspir_psi;
 MCNUM precision = mcclogspir_precision;
 MCNUM max_iterations = mcclogspir_max_iterations;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 237 "LogSpiral.comp"
+#line 240 "LogSpiral.comp"
 {
 
 
 }
-#line 8847 "./test.c"
+#line 8850 "./test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
