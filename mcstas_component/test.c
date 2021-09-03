@@ -2,14 +2,14 @@
  * Format:     ANSI C source code
  * Creator:    McStas <http://www.mcstas.org>
  * Instrument: test.instr (logspir_test)
- * Date:       Thu Sep  2 18:29:08 2021
+ * Date:       Fri Sep  3 13:53:41 2021
  * File:       ./test.c
  * Compile:    cc -o logspir_test.out ./test.c 
  * CFLAGS=
  */
 
 
-#define MCCODE_STRING "McStas 2.6.1 - May. 04, 2020"
+#define MCCODE_STRING "McStas 2.7 - Nov. 27, 2020"
 #define FLAVOR "mcstas"
 #define FLAVOR_UPPER "MCSTAS"
 #define MC_USE_DEFAULT_MAIN
@@ -29,7 +29,7 @@
 * %Identification
 * Written by: KN
 * Date:    Aug 29, 1997
-* Release: McStas 2.6.1
+* Release: McStas 2.7
 * Version: $Revision$
 *
 * Runtime system header for McStas/McXtrace.
@@ -112,15 +112,15 @@
 
 /* the version string is replaced when building distribution with mkdist */
 #ifndef MCCODE_STRING
-#define MCCODE_STRING "McStas 2.6.1 - May. 04, 2020"
+#define MCCODE_STRING "McStas 2.7 - Nov. 27, 2020"
 #endif
 
 #ifndef MCCODE_DATE
-#define MCCODE_DATE "May. 04, 2020"
+#define MCCODE_DATE "Nov. 27, 2020"
 #endif
 
 #ifndef MCCODE_VERSION
-#define MCCODE_VERSION "2.6.1"
+#define MCCODE_VERSION "2.7"
 #endif
 
 #ifndef MCCODE_NAME
@@ -750,7 +750,7 @@ NXhandle nxhandle;
 #ifndef MCSTAS_R_H
 #define MCSTAS_R_H "$Revision$"
 
-/* Following part is only embedded when not redundent with mcstas.h ========= */
+/* Following part is only embedded when not redundant with mcstas.h ========= */
 
 #ifndef MCCODE_H
 
@@ -1462,7 +1462,7 @@ MCDETECTOR mcdetector_statistics(
   MCDETECTOR detector)
 {
 
-  if (!detector.p1 || !detector.m || !detector.filename)
+  if (!detector.p1 || !detector.m)
     return(detector);
   
   /* compute statistics and update MCDETECTOR structure ===================== */
@@ -5340,7 +5340,7 @@ int mctraceenabled = 1;
 #else
 int mctraceenabled = 0;
 #endif
-#define MCSTAS "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../"
+#define MCSTAS "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../"
 int mcdefaultmain = 1;
 char mcinstrument_name[] = "logspir_test";
 char mcinstrument_source[] = "test.instr";
@@ -6321,8 +6321,8 @@ double Table_Value(t_Table Table, double X, long j)
       } /* end for Index */
   }
 
-  Y1 = Table_Index(Table,Index-1,j);
-  Y2 = Table_Index(Table,Index  ,j);
+  Y1 = Table_Index(Table,Index, j);
+  Y2 = Table_Index(Table,Index+1, j);
 
   if (!strcmp(Table.method,"linear")) {
     ret = Table_Interp1d(X, X1,Y1, X2,Y2);
@@ -7058,7 +7058,7 @@ MCNUM mcclogspir_placeholder;
 #define percent mccorigin_percent
 #define flag_save mccorigin_flag_save
 #define minutes mccorigin_minutes
-#line 44 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 44 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 #ifndef PROGRESS_BAR
 #define PROGRESS_BAR
 #else
@@ -7114,7 +7114,7 @@ time_t CurrentTime;
 #define dlambda mccsource_div_dlambda
 #define gauss mccsource_div_gauss
 #define flux mccsource_div_flux
-#line 69 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 69 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, focus_yh;
 #line 7119 "./test.c"
 #undef flux
@@ -7174,11 +7174,11 @@ double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, foc
 #define max_iterations mcclogspir_max_iterations
 #define placeholder mcclogspir_placeholder
 #line 59 "LogSpiral.comp"
+double dt; // time to propagate the neutron onto the mirror surface
 	///////////////////////////////////////////////////////////////////////////
 /////////////// Some Structures
 ///////////////////////////////////////////////////////////////////////////
-struct LogSpir
-{
+typedef struct LogSpir{
     double zstart;
     double zend;
     double psi;
@@ -7187,24 +7187,24 @@ struct LogSpir
     double precision;
     double theta_end;
     double x_end;
-};//logspiral will be our surface to reflect from; nice
+} LogSpir;//logspiral will be our surface to reflect from; nice
 
-struct Neutron{
+typedef struct Vector2D{
 	double z;
 	double x;
 	double vz;
 	double vx;
-};//Structure for a 2D neutron
+} Vector2D;//Structure for a 2D Vector2D
 
 
 
 ///////////////////////////////////////////////////////////////////////////
 /////////////// Collision handling functions
 ///////////////////////////////////////////////////////////////////////////
-double newton_theta_end(struct LogSpir logspir, double theta){
+double newton_theta_end(LogSpir logspir, double theta){
 	return cos(theta)*logspir.zstart*exp(logspir.k*theta)-logspir.zend;
 }
-double newton_theta_end_derivative(struct LogSpir logspir, double theta){
+double newton_theta_end_derivative(LogSpir logspir, double theta){
 	return logspir.zstart*exp(logspir.k*theta)*(cos(theta)*logspir.k-sin(theta));
 }
 
@@ -7212,20 +7212,20 @@ double return_r(double theta, double k, double zstart){
     return zstart*exp(k*theta);
 };
 
-struct Neutron return_cart_coordsspiral(struct LogSpir logspir, double theta){
-	struct Neutron n;
+Vector2D return_cart_coordsspiral(LogSpir logspir, double theta){
+	struct Vector2D n;
 	double r = return_r(theta, logspir.k, logspir.zstart);
 	n.z = cos(theta)*r;
 	n.x = sin(theta)*r;
 	return n;
 }
 
-double return_approx_theta_end(struct LogSpir logspir){
+double return_approx_theta_end(LogSpir logspir){
 	printf("logspir k %f\n", logspir.k);
     return log(logspir.zend/logspir.zstart)/logspir.k;
 };
 
-double return_precise_theta_end(struct LogSpir logspir, int max_iterations){
+double return_precise_theta_end(LogSpir logspir, int max_iterations){
 	double theta_0 = return_approx_theta_end(logspir);
 	double theta_n;
 	for (int ii; ii < max_iterations; ii++){
@@ -7239,16 +7239,66 @@ double return_precise_theta_end(struct LogSpir logspir, int max_iterations){
 	return -10.0;
 }
 
+double return_approx_theta_int(LogSpir logspir){//approximating by intersection with line seems comp expensive + if the intersection is far away
+	return logspir.theta_end/2;
+}
+
+double return_precise_theta_int(LogSpir logspir, Vector2D n, double max_iterations){//
+	double theta_0, theta_n;
+	double m = n.vx/n.vz;
+	double x0 = n.x-n.z/n.vz*n.vx;
+	double f(double theta){
+		return logspir.zstart*exp(logspir.k*theta)*(sin(theta)-m*cos(theta))-x0;
+	}
+	double f_derivative(double theta){
+		return logspir.zstart*exp(logspir.k*theta)*(cos(theta)*(1-logspir.k*m)+ sin(theta)*(logspir.k+m));
+	}
+	theta_0 = return_approx_theta_int(logspir);
+	for (int ii; ii<max_iterations; ii++ ){
+		theta_n = theta_0-f(theta_0)/f_derivative(theta_0);
+		if (fabs(theta_n-theta_0)<logspir.precision){
+			if ((0<theta_n)&&(theta_n<logspir.theta_end)){
+				return theta_n;
+			}
+			return -10;
+		}
+		theta_0 = theta_n;
 
 
+	}
+	return -10;
+}
+
+Vector2D return_normal_vec(LogSpir logspir, double theta){//returns the normalized normal vector to the surface
+	Vector2D n2d;
+	double k = logspir.k;
+	double prefac = 1/sqrt(1+k*k);
+	n2d.vz = (cos(theta)+k*sin(theta))*prefac;
+	n2d.vx = (sin(theta)-k*cos(theta))*prefac;
+	return n2d;
+}
+
+void reflected_direction(Vector2D normal, Vector2D *neutron){
+	double vdotn = neutron->vz*normal.vz + neutron->vx*normal.vx;
+	neutron->vx = neutron->vx-2*vdotn*normal.vx;
+	neutron->vz = neutron->vz-2*vdotn*normal.vz;
+}
+
+double return_time_first_interaction(LogSpir logspir, Vector2D n, double max_iterations){
+	double theta_int = return_precise_theta_int(logspir, n, max_iterations);
+	double z_int = cos(theta_int)*return_r(theta_int, logspir.k, logspir.zstart);
+	return z_int/n.vz;
+}
 
 
 ///////////////////////////////////////////////////////////////////////////
 /////////////// End of functions
 ///////////////////////////////////////////////////////////////////////////
-
-
-#line 7251 "./test.c"
+//Vector2D n;
+LogSpir logspir;
+double dt;
+Vector2D *n; 
+#line 7301 "./test.c"
 #undef placeholder
 #undef max_iterations
 #undef precision
@@ -7316,14 +7366,14 @@ void mcinit(void) {
   mccorigin_flag_save = 0;
 #line 39 "test.instr"
   mccorigin_minutes = 0;
-#line 7319 "./test.c"
+#line 7369 "./test.c"
 
   SIG_MESSAGE("origin (Init:Place/Rotate)");
   rot_set_rotation(mcrotaorigin,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7326 "./test.c"
+#line 7376 "./test.c"
   rot_copy(mcrotrorigin, mcrotaorigin);
   mcposaorigin = coords_set(
 #line 47 "test.instr"
@@ -7332,7 +7382,7 @@ void mcinit(void) {
     0,
 #line 47 "test.instr"
     0);
-#line 7335 "./test.c"
+#line 7385 "./test.c"
   mctc1 = coords_neg(mcposaorigin);
   mcposrorigin = rot_apply(mcrotaorigin, mctc1);
   mcDEBUG_COMPONENT("origin", mcposaorigin, mcrotaorigin)
@@ -7349,7 +7399,7 @@ void mcinit(void) {
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7352 "./test.c"
+#line 7402 "./test.c"
   rot_mul(mctr1, mcrotaorigin, mcrotasource);
   rot_transpose(mcrotaorigin, mctr1);
   rot_mul(mcrotasource, mctr1, mcrotrsource);
@@ -7360,7 +7410,7 @@ void mcinit(void) {
     0,
 #line 51 "test.instr"
     0);
-#line 7363 "./test.c"
+#line 7413 "./test.c"
   rot_transpose(mcrotaorigin, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource = coords_add(mcposaorigin, mctc2);
@@ -7394,14 +7444,14 @@ void mcinit(void) {
   mccsource_div_gauss = 0;
 #line 60 "test.instr"
   mccsource_div_flux = mcipflux;
-#line 7397 "./test.c"
+#line 7447 "./test.c"
 
   SIG_MESSAGE("source_div (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7404 "./test.c"
+#line 7454 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotasource_div);
   rot_transpose(mcrotasource, mctr1);
   rot_mul(mcrotasource_div, mctr1, mcrotrsource_div);
@@ -7412,7 +7462,7 @@ void mcinit(void) {
     0,
 #line 62 "test.instr"
     0);
-#line 7415 "./test.c"
+#line 7465 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource_div = coords_add(mcposasource, mctc2);
@@ -7440,14 +7490,14 @@ void mcinit(void) {
   mccslit_xwidth = 0;
 #line 46 "test.instr"
   mccslit_yheight = 0;
-#line 7443 "./test.c"
+#line 7493 "./test.c"
 
   SIG_MESSAGE("slit (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7450 "./test.c"
+#line 7500 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotaslit);
   rot_transpose(mcrotasource_div, mctr1);
   rot_mul(mcrotaslit, mctr1, mcrotrslit);
@@ -7458,7 +7508,7 @@ void mcinit(void) {
     0,
 #line 67 "test.instr"
     0);
-#line 7461 "./test.c"
+#line 7511 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposaslit = coords_add(mcposasource, mctc2);
@@ -7484,14 +7534,14 @@ void mcinit(void) {
   mcclogspir_max_iterations = 10;
 #line 43 "test.instr"
   mcclogspir_placeholder = 0;
-#line 7487 "./test.c"
+#line 7537 "./test.c"
 
   SIG_MESSAGE("logspir (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7494 "./test.c"
+#line 7544 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotalogspir);
   rot_transpose(mcrotaslit, mctr1);
   rot_mul(mcrotalogspir, mctr1, mcrotrlogspir);
@@ -7502,7 +7552,7 @@ void mcinit(void) {
     0,
 #line 70 "test.instr"
     0);
-#line 7505 "./test.c"
+#line 7555 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposalogspir = coords_add(mcposasource, mctc2);
@@ -7527,7 +7577,7 @@ void mcinit(void) {
 #define percent mccorigin_percent
 #define flag_save mccorigin_flag_save
 #define minutes mccorigin_minutes
-#line 57 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 57 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
 IntermediateCnts=0;
 StartTime=0;
@@ -7539,7 +7589,7 @@ fprintf(stdout, "[%s] Initialize\n", mcinstrument_name);
     percent=1e5*100.0/mcget_ncount();
   }
 }
-#line 7542 "./test.c"
+#line 7592 "./test.c"
 #undef minutes
 #undef flag_save
 #undef percent
@@ -7580,7 +7630,7 @@ fprintf(stdout, "[%s] Initialize\n", mcinstrument_name);
 #define dlambda mccsource_div_dlambda
 #define gauss mccsource_div_gauss
 #define flux mccsource_div_flux
-#line 72 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 72 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 {
 sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
   sigmav = DEG2RAD*focus_ah/(sqrt(8.0*log(2.0)));
@@ -7626,7 +7676,7 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
   else if (dE)
     p_init *= 2*dE;
 }
-#line 7629 "./test.c"
+#line 7679 "./test.c"
 #undef flux
 #undef gauss
 #undef dlambda
@@ -7663,7 +7713,7 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
 #define radius mccslit_radius
 #define xwidth mccslit_xwidth
 #define yheight mccslit_yheight
-#line 50 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../optics/Slit.comp"
+#line 50 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../optics/Slit.comp"
 {
 if (xwidth > 0)  { 
   if (!xmin && !xmax) {
@@ -7683,7 +7733,7 @@ if (xwidth > 0)  {
     { fprintf(stderr,"Slit: %s: Warning: Running with CLOSED slit - is this intentional?? \n", NAME_CURRENT_COMP); }
 
 }
-#line 7686 "./test.c"
+#line 7736 "./test.c"
 #undef yheight
 #undef xwidth
 #undef radius
@@ -7706,7 +7756,7 @@ if (xwidth > 0)  {
 #define precision mcclogspir_precision
 #define max_iterations mcclogspir_max_iterations
 #define placeholder mcclogspir_placeholder
-#line 136 "LogSpiral.comp"
+#line 186 "LogSpiral.comp"
 {
     double psi_rad;//=psi*DEG2RAD;
     double k;//=arctan(psi_rad);
@@ -7715,7 +7765,7 @@ if (xwidth > 0)  {
 	///////////////////////////////////////////////////////////////////////////
 	/////////////// Initialize the logarithmic spiral
 	///////////////////////////////////////////////////////////////////////////
-	struct LogSpir logspir;
+
 	logspir.zstart=zstart;
 	logspir.zend = zend;
 	logspir.psi = psi;
@@ -7725,8 +7775,10 @@ if (xwidth > 0)  {
 	printf("a theta end %f \n", return_approx_theta_end(logspir));
 	logspir.theta_end = return_precise_theta_end(logspir, max_iterations);
 	printf("theta_end%f", logspir.theta_end);
+	n->x = 12;
+	n->z = 2;
 }
-#line 7729 "./test.c"
+#line 7781 "./test.c"
 #undef placeholder
 #undef max_iterations
 #undef precision
@@ -7846,7 +7898,7 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 70 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 70 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   double ncount;
   ncount = mcget_run_num();
@@ -7890,7 +7942,7 @@ MCNUM minutes = mccorigin_minutes;
     if (flag_save) mcsave(NULL);
   }
 }
-#line 7893 "./test.c"
+#line 7945 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8123,7 +8175,7 @@ MCNUM lambda0 = mccsource_div_lambda0;
 MCNUM dlambda = mccsource_div_dlambda;
 MCNUM gauss = mccsource_div_gauss;
 MCNUM flux = mccsource_div_flux;
-#line 118 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 118 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 {
   double E,lambda,v;
 
@@ -8171,7 +8223,7 @@ MCNUM flux = mccsource_div_flux;
   vy = tan_v * vz;
   vx = tan_h * vz;
 }
-#line 8174 "./test.c"
+#line 8226 "./test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -8294,7 +8346,7 @@ MCNUM ymax = mccslit_ymax;
 MCNUM radius = mccslit_radius;
 MCNUM xwidth = mccslit_xwidth;
 MCNUM yheight = mccslit_yheight;
-#line 71 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../optics/Slit.comp"
+#line 71 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../optics/Slit.comp"
 {
     PROP_Z0;
     if (((radius == 0) && (x<xmin || x>xmax || y<ymin || y>ymax))
@@ -8305,7 +8357,7 @@ MCNUM yheight = mccslit_yheight;
     else
         SCATTER;
 }
-#line 8308 "./test.c"
+#line 8360 "./test.c"
 }   /* End of slit=Slit() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8417,14 +8469,21 @@ MCNUM psi = mcclogspir_psi;
 MCNUM precision = mcclogspir_precision;
 MCNUM max_iterations = mcclogspir_max_iterations;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 159 "LogSpiral.comp"
+#line 211 "LogSpiral.comp"
 {
   PROP_Z0;
+  n->x = 12.2;
+  //n->z = z;
+  //n->vx = vx;
+  //n->vz = vz;
+  dt = return_time_first_interaction(logspir, *n, max_iterations);
+
+  PROP_DT(dt);
   SCATTER;
 
 
 }
-#line 8427 "./test.c"
+#line 8486 "./test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8516,7 +8575,7 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 115 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 115 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   MPI_MASTER(fprintf(stdout, "\nSave [%s]\n", mcinstrument_name););
   if (profile && strlen(profile) && strcmp(profile,"NULL") && strcmp(profile,"0")) {
@@ -8533,7 +8592,7 @@ MCNUM minutes = mccorigin_minutes;
 
   }
 }
-#line 8536 "./test.c"
+#line 8595 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8564,7 +8623,7 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 133 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 133 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   time_t NowTime;
   time(&NowTime);
@@ -8577,7 +8636,7 @@ MCNUM minutes = mccorigin_minutes;
     fprintf(stdout, "%g [min] ", difftime(NowTime,StartTime)/60.0);
   fprintf(stdout, "\n");
 }
-#line 8580 "./test.c"
+#line 8639 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8632,11 +8691,11 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 147 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 147 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   
 }
-#line 8634 "./test.c"
+#line 8693 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8652,7 +8711,7 @@ MCNUM minutes = mccorigin_minutes;
 #define mccompcurname  source
 #define mccompcurtype  Arm
 #define mccompcurindex 2
-#line 40 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../optics/Arm.comp"
+#line 40 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../optics/Arm.comp"
 {
   /* A bit ugly; hard-coded dimensions. */
   
@@ -8660,7 +8719,7 @@ MCNUM minutes = mccorigin_minutes;
   line(0,0,0,0,0.2,0);
   line(0,0,0,0,0,0.2);
 }
-#line 8658 "./test.c"
+#line 8717 "./test.c"
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -8692,7 +8751,7 @@ MCNUM lambda0 = mccsource_div_lambda0;
 MCNUM dlambda = mccsource_div_dlambda;
 MCNUM gauss = mccsource_div_gauss;
 MCNUM flux = mccsource_div_flux;
-#line 167 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 167 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 {
   
   multiline(5, -xwidth/2.0, -yheight/2.0, 0.0,
@@ -8707,7 +8766,7 @@ MCNUM flux = mccsource_div_flux;
     dashed_line(0,0,0, -focus_xw/2, focus_yh/2,dist, 4);
   }
 }
-#line 8705 "./test.c"
+#line 8764 "./test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -8737,7 +8796,7 @@ MCNUM ymax = mccslit_ymax;
 MCNUM radius = mccslit_radius;
 MCNUM xwidth = mccslit_xwidth;
 MCNUM yheight = mccslit_yheight;
-#line 83 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../optics/Slit.comp"
+#line 83 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../optics/Slit.comp"
 {
   
   if (radius == 0) {
@@ -8760,7 +8819,7 @@ MCNUM yheight = mccslit_yheight;
     circle("xy",0,0,0,radius);
   }
 }
-#line 8758 "./test.c"
+#line 8817 "./test.c"
 }   /* End of slit=Slit() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8779,12 +8838,12 @@ MCNUM psi = mcclogspir_psi;
 MCNUM precision = mcclogspir_precision;
 MCNUM max_iterations = mcclogspir_max_iterations;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 172 "LogSpiral.comp"
+#line 231 "LogSpiral.comp"
 {
 
 
 }
-#line 8782 "./test.c"
+#line 8841 "./test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
