@@ -2,7 +2,7 @@
  * Format:     ANSI C source code
  * Creator:    McStas <http://www.mcstas.org>
  * Instrument: test.instr (logspir_test)
- * Date:       Fri Sep  3 13:53:41 2021
+ * Date:       Fri Sep  3 14:17:35 2021
  * File:       ./test.c
  * Compile:    cc -o logspir_test.out ./test.c 
  * CFLAGS=
@@ -7196,7 +7196,12 @@ typedef struct Vector2D{
 	double vx;
 } Vector2D;//Structure for a 2D Vector2D
 
-
+void Neutron2Dinit(Vector2D *neutron, MCNUM z, MCNUM x, MCNUM vz, MCNUM vx){
+	neutron->z = z;
+	neutron->x = x;
+	neutron->vz = vz;
+	neutron->vx = vx;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 /////////////// Collision handling functions
@@ -7298,7 +7303,7 @@ double return_time_first_interaction(LogSpir logspir, Vector2D n, double max_ite
 LogSpir logspir;
 double dt;
 Vector2D *n; 
-#line 7301 "./test.c"
+#line 7306 "./test.c"
 #undef placeholder
 #undef max_iterations
 #undef precision
@@ -7366,14 +7371,14 @@ void mcinit(void) {
   mccorigin_flag_save = 0;
 #line 39 "test.instr"
   mccorigin_minutes = 0;
-#line 7369 "./test.c"
+#line 7374 "./test.c"
 
   SIG_MESSAGE("origin (Init:Place/Rotate)");
   rot_set_rotation(mcrotaorigin,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7376 "./test.c"
+#line 7381 "./test.c"
   rot_copy(mcrotrorigin, mcrotaorigin);
   mcposaorigin = coords_set(
 #line 47 "test.instr"
@@ -7382,7 +7387,7 @@ void mcinit(void) {
     0,
 #line 47 "test.instr"
     0);
-#line 7385 "./test.c"
+#line 7390 "./test.c"
   mctc1 = coords_neg(mcposaorigin);
   mcposrorigin = rot_apply(mcrotaorigin, mctc1);
   mcDEBUG_COMPONENT("origin", mcposaorigin, mcrotaorigin)
@@ -7399,7 +7404,7 @@ void mcinit(void) {
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7402 "./test.c"
+#line 7407 "./test.c"
   rot_mul(mctr1, mcrotaorigin, mcrotasource);
   rot_transpose(mcrotaorigin, mctr1);
   rot_mul(mcrotasource, mctr1, mcrotrsource);
@@ -7410,7 +7415,7 @@ void mcinit(void) {
     0,
 #line 51 "test.instr"
     0);
-#line 7413 "./test.c"
+#line 7418 "./test.c"
   rot_transpose(mcrotaorigin, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource = coords_add(mcposaorigin, mctc2);
@@ -7444,14 +7449,14 @@ void mcinit(void) {
   mccsource_div_gauss = 0;
 #line 60 "test.instr"
   mccsource_div_flux = mcipflux;
-#line 7447 "./test.c"
+#line 7452 "./test.c"
 
   SIG_MESSAGE("source_div (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7454 "./test.c"
+#line 7459 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotasource_div);
   rot_transpose(mcrotasource, mctr1);
   rot_mul(mcrotasource_div, mctr1, mcrotrsource_div);
@@ -7462,7 +7467,7 @@ void mcinit(void) {
     0,
 #line 62 "test.instr"
     0);
-#line 7465 "./test.c"
+#line 7470 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource_div = coords_add(mcposasource, mctc2);
@@ -7490,14 +7495,14 @@ void mcinit(void) {
   mccslit_xwidth = 0;
 #line 46 "test.instr"
   mccslit_yheight = 0;
-#line 7493 "./test.c"
+#line 7498 "./test.c"
 
   SIG_MESSAGE("slit (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7500 "./test.c"
+#line 7505 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotaslit);
   rot_transpose(mcrotasource_div, mctr1);
   rot_mul(mcrotaslit, mctr1, mcrotrslit);
@@ -7508,7 +7513,7 @@ void mcinit(void) {
     0,
 #line 67 "test.instr"
     0);
-#line 7511 "./test.c"
+#line 7516 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposaslit = coords_add(mcposasource, mctc2);
@@ -7534,14 +7539,14 @@ void mcinit(void) {
   mcclogspir_max_iterations = 10;
 #line 43 "test.instr"
   mcclogspir_placeholder = 0;
-#line 7537 "./test.c"
+#line 7542 "./test.c"
 
   SIG_MESSAGE("logspir (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7544 "./test.c"
+#line 7549 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotalogspir);
   rot_transpose(mcrotaslit, mctr1);
   rot_mul(mcrotalogspir, mctr1, mcrotrlogspir);
@@ -7552,7 +7557,7 @@ void mcinit(void) {
     0,
 #line 70 "test.instr"
     0);
-#line 7555 "./test.c"
+#line 7560 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposalogspir = coords_add(mcposasource, mctc2);
@@ -7589,7 +7594,7 @@ fprintf(stdout, "[%s] Initialize\n", mcinstrument_name);
     percent=1e5*100.0/mcget_ncount();
   }
 }
-#line 7592 "./test.c"
+#line 7597 "./test.c"
 #undef minutes
 #undef flag_save
 #undef percent
@@ -7676,7 +7681,7 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
   else if (dE)
     p_init *= 2*dE;
 }
-#line 7679 "./test.c"
+#line 7684 "./test.c"
 #undef flux
 #undef gauss
 #undef dlambda
@@ -7733,7 +7738,7 @@ if (xwidth > 0)  {
     { fprintf(stderr,"Slit: %s: Warning: Running with CLOSED slit - is this intentional?? \n", NAME_CURRENT_COMP); }
 
 }
-#line 7736 "./test.c"
+#line 7741 "./test.c"
 #undef yheight
 #undef xwidth
 #undef radius
@@ -7756,7 +7761,7 @@ if (xwidth > 0)  {
 #define precision mcclogspir_precision
 #define max_iterations mcclogspir_max_iterations
 #define placeholder mcclogspir_placeholder
-#line 186 "LogSpiral.comp"
+#line 191 "LogSpiral.comp"
 {
     double psi_rad;//=psi*DEG2RAD;
     double k;//=arctan(psi_rad);
@@ -7778,7 +7783,7 @@ if (xwidth > 0)  {
 	n->x = 12;
 	n->z = 2;
 }
-#line 7781 "./test.c"
+#line 7786 "./test.c"
 #undef placeholder
 #undef max_iterations
 #undef precision
@@ -7942,7 +7947,7 @@ MCNUM minutes = mccorigin_minutes;
     if (flag_save) mcsave(NULL);
   }
 }
-#line 7945 "./test.c"
+#line 7950 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8223,7 +8228,7 @@ MCNUM flux = mccsource_div_flux;
   vy = tan_v * vz;
   vx = tan_h * vz;
 }
-#line 8226 "./test.c"
+#line 8231 "./test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -8357,7 +8362,7 @@ MCNUM yheight = mccslit_yheight;
     else
         SCATTER;
 }
-#line 8360 "./test.c"
+#line 8365 "./test.c"
 }   /* End of slit=Slit() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8469,10 +8474,11 @@ MCNUM psi = mcclogspir_psi;
 MCNUM precision = mcclogspir_precision;
 MCNUM max_iterations = mcclogspir_max_iterations;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 211 "LogSpiral.comp"
+#line 216 "LogSpiral.comp"
 {
+  Neutron2Dinit(n, z, x, vz, vx);
+
   PROP_Z0;
-  n->x = 12.2;
   //n->z = z;
   //n->vx = vx;
   //n->vz = vz;
@@ -8483,7 +8489,7 @@ MCNUM placeholder = mcclogspir_placeholder;
 
 
 }
-#line 8486 "./test.c"
+#line 8492 "./test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8592,7 +8598,7 @@ MCNUM minutes = mccorigin_minutes;
 
   }
 }
-#line 8595 "./test.c"
+#line 8601 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8636,7 +8642,7 @@ MCNUM minutes = mccorigin_minutes;
     fprintf(stdout, "%g [min] ", difftime(NowTime,StartTime)/60.0);
   fprintf(stdout, "\n");
 }
-#line 8639 "./test.c"
+#line 8645 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8695,7 +8701,7 @@ MCNUM minutes = mccorigin_minutes;
 {
   
 }
-#line 8693 "./test.c"
+#line 8699 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8719,7 +8725,7 @@ MCNUM minutes = mccorigin_minutes;
   line(0,0,0,0,0.2,0);
   line(0,0,0,0,0,0.2);
 }
-#line 8717 "./test.c"
+#line 8723 "./test.c"
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -8766,7 +8772,7 @@ MCNUM flux = mccsource_div_flux;
     dashed_line(0,0,0, -focus_xw/2, focus_yh/2,dist, 4);
   }
 }
-#line 8764 "./test.c"
+#line 8770 "./test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -8819,7 +8825,7 @@ MCNUM yheight = mccslit_yheight;
     circle("xy",0,0,0,radius);
   }
 }
-#line 8817 "./test.c"
+#line 8823 "./test.c"
 }   /* End of slit=Slit() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8838,12 +8844,12 @@ MCNUM psi = mcclogspir_psi;
 MCNUM precision = mcclogspir_precision;
 MCNUM max_iterations = mcclogspir_max_iterations;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 231 "LogSpiral.comp"
+#line 237 "LogSpiral.comp"
 {
 
 
 }
-#line 8841 "./test.c"
+#line 8847 "./test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype

@@ -78,7 +78,12 @@ typedef struct Vector2D{
 	double vx;
 } Vector2D;//Structure for a 2D Vector2D
 
-
+void Neutron2Dinit(Vector2D *neutron, MCNUM z, MCNUM x, MCNUM vz, MCNUM vx){
+	neutron->z = z;
+	neutron->x = x;
+	neutron->vz = vz;
+	neutron->vx = vx;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 /////////////// Collision handling functions
@@ -209,8 +214,9 @@ INITIALIZE
 
 TRACE
 %{
+  Neutron2Dinit(n, z, x, vz, vx);
+
   PROP_Z0;
-  n->x = 12.2;
   //n->z = z;
   //n->vx = vx;
   //n->vz = vz;
