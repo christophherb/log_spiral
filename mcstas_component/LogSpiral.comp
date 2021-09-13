@@ -36,7 +36,7 @@ DEFINE COMPONENT LogSpiral
 DEFINITION PARAMETERS()
 SETTING PARAMETERS (
     zstart=1,
-    zend=4,
+    zend=3,
     psi=5,
     precision=1e-5,
 	max_iterations=10,
@@ -49,13 +49,6 @@ OUTPUT PARAMETERS (
 SHARE
 %{
 %include "ref-lib"
-
-
-%}
-
-
-DECLARE
-%{
 double dt; // time to propagate the neutron onto the mirror surface
 	///////////////////////////////////////////////////////////////////////////
 /////////////// Some Structures
@@ -77,13 +70,6 @@ typedef struct Vector2D{
 	double vz;
 	double vx;
 } Vector2D;//Structure for a 2D Vector2D
-
-void Neutron2Dinit(Vector2D *neutron, double z, double x, double vz, double vx){
-	neutron->z = z;
-	neutron->x = x;
-	neutron->vz = vz;
-	neutron->vx = vx;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 /////////////// Collision handling functions
@@ -176,7 +162,22 @@ double return_time_first_interaction(LogSpir logspir, double theta_int, Vector2D
 	return z_int/n->vz;
 }
 
+void Neutron2Dinit(Vector2D *neutron, double z, double x, double vz, double vx){
+	neutron->z = z;
+	neutron->x = x;
+	neutron->vz = vz;
+	neutron->vx = vx;
+}
 
+void LogSpirinit(LogSpir *logspir, double zstart, double zend, double psi, double precision, double max_iterations){
+	logspir->zstart = zstart;
+	logspir->zend = zend;
+	logspir->psi = psi;
+	logspir->psi_rad = psi*DEG2RAD;
+	logspir->k = 1/tan(logspir->psi_rad);
+	logspir->precision = precision;
+	logspir->theta_end = return_precise_theta_end(*logspir, max_iterations);
+}
 ///////////////////////////////////////////////////////////////////////////
 /////////////// End of functions
 ///////////////////////////////////////////////////////////////////////////
@@ -184,14 +185,23 @@ double return_time_first_interaction(LogSpir logspir, double theta_int, Vector2D
 double dt;
 double theta_int;
 LogSpir logspir;
+LogSpir *logspirp;
 Vector2D n;
 Vector2D *ptrn;
 Vector2D normal;
+
+%}
+
+
+DECLARE
+%{
+
 %}
 
 INITIALIZE
 %{
 	ptrn = &n;
+	logspirp = &logspir;
     double psi_rad;//=psi*DEG2RAD;
     double k;//=arctan(psi_rad);
     double theta_end;
@@ -199,15 +209,8 @@ INITIALIZE
 	///////////////////////////////////////////////////////////////////////////
 	/////////////// Initialize the logarithmic spiral
 	///////////////////////////////////////////////////////////////////////////
+	LogSpirinit(logspirp, zstart, zend, psi, precision, max_iterations);
 
-	logspir.zstart=zstart;
-	logspir.zend = zend;
-	logspir.psi = psi;
-	logspir.psi_rad = psi*DEG2RAD;
-	logspir.k = 1/tan(logspir.psi_rad);
-	logspir.precision = precision;
-	printf("a theta end %f \n", return_approx_theta_end(logspir));
-	logspir.theta_end = return_precise_theta_end(logspir, max_iterations);
 	printf("theta_end%f", logspir.theta_end);
 %}
 
@@ -215,20 +218,20 @@ INITIALIZE
 
 TRACE
 %{
-  
+
   PROP_Z0;
   Neutron2Dinit(ptrn, z, x, vz, vx);
   theta_int = return_precise_theta_int(logspir, *ptrn, max_iterations);
-  printf("theta int %f\n", theta_int);
+  //printf("theta int %f\n", theta_int);
   if (theta_int<0){
-	ABSORB;
+	;
+  }else{
+  	normal = return_normal_vec(logspir, theta_int);
+  	dt = return_time_first_interaction(logspir, theta_int, ptrn);
+  	PROP_DT(dt);
+  	reflected_direction(normal, &z, &x, &vz, &vx);
+  	SCATTER;
   };
-  normal = return_normal_vec(logspir, theta_int);
-  dt = return_time_first_interaction(logspir, theta_int, ptrn);
-  PROP_DT(dt);
-  reflected_direction(normal, &z, &x, &vz, &vx);  
-  SCATTER;
-
 
 %}
 
