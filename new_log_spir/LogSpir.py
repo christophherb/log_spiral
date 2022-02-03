@@ -306,7 +306,7 @@ class LogSpir:
         if theta_int:
             z_int, _ = self.return_cart_coords(theta_int)
             t = (z_int - z0)/vz
-            if t > 0:#need to make sure this is positive
+            if t > 0.00001:#need to make sure this is positive
                 return t 
         return None # else we dont return anything
 
@@ -331,6 +331,7 @@ class LogSpir:
             if t:
                 interaction_times.append((ind, t, theta_int))
         try:
+            print(sorted(interaction_times, key=lambda x: x[1]))
             return sorted(interaction_times, key=lambda x: x[1])[0]#sort interaction times by time and return the lowest one
         except IndexError:
             return None #if the list is empty, i.e., no interactions --> return nothing
