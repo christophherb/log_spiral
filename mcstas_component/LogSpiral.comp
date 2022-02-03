@@ -50,6 +50,7 @@ SHARE
 %{
 %include "ref-lib"
 double dt; // time to propagate the neutron onto the mirror surface
+double interaction; //if no interaction can take place neutrons are propagated onto the next component
 	///////////////////////////////////////////////////////////////////////////
 /////////////// Some Structures
 ///////////////////////////////////////////////////////////////////////////
@@ -62,6 +63,7 @@ typedef struct LogSpir{
     double precision;
     double theta_end;
     double x_end;
+	int branches;
 } LogSpir;//logspiral will be our surface to reflect from; nice
 
 typedef struct Vector2D{
@@ -70,6 +72,43 @@ typedef struct Vector2D{
 	double vz;
 	double vx;
 } Vector2D;//Structure for a 2D Vector2D
+
+typedef struct BranchTime{
+	double phi_rot;//rotation angle of the branch
+	double t;//time of interaction
+	double theta_int;//angle under which the interaction takes place
+} BranchTime;//Structure for a 2D Vector2D
+
+
+void rotateNeutron(Vector2D *neutron, Vector2D initneut, double theta_rot){
+	double sint = sin(theta_rot);
+	double cost = cos(theta_rot);
+	neutron->z = cost*initneut.z - sint*initneut.x;
+    neutron->x = sint*initneut.z + cost*initneut.x;
+    neutron->vz= cost*initneut.vz - sint*initneut.vx;
+    neutron->vz= sint*initneut.vz + cost*initneut.vx;
+}	
+	
+	
+	
+Neutron2Dinit(Vector2D *neutron, double z, double x, double vz, double vx){
+	neutron->z = z;
+	neutron->x = x;
+	neutron->vz = vz;
+	neutron->vx = vx;
+}
+
+void reflected_direction(Vector2D normal, Vector2D *neutron){
+	double vz = neutron->vz;
+	double vx = neutron->vx;
+	double vdotn = vz*normal.vz + vx*normal.vx;
+	vx = vx-2*vdotn*normal.vx;
+	vz = vz-2*vdotn*normal.vz;
+	neutron->vz = vz;
+	neutron->vx = vx;
+}
+
+
 
 ///////////////////////////////////////////////////////////////////////////
 /////////////// Collision handling functions
@@ -112,6 +151,17 @@ double return_precise_theta_end(LogSpir logspir, int max_iterations){
 	return -10.0;
 }
 
+void LogSpirinit(LogSpir *logspir, double zstart, double zend, double psi, double precision, double max_iterations){
+	logspir->zstart = zstart;
+	logspir->zend = zend;
+	logspir->psi = psi;
+	logspir->psi_rad = psi*DEG2RAD;
+	logspir->k = 1/tan(logspir->psi_rad);
+	logspir->precision = precision;
+	logspir->theta_end = return_precise_theta_end(*logspir, max_iterations);
+}
+
+
 double return_approx_theta_int(LogSpir logspir){//approximating by intersection with line seems comp expensive + if the intersection is far away
 	return logspir.theta_end/2;
 }
@@ -142,6 +192,58 @@ double return_precise_theta_int(LogSpir logspir, Vector2D n, double max_iteratio
 	return -10;
 }
 
+float return_intersection_time(LogSpir logspir, double z0, double x0, double vz, double vx, double theta_int){
+	Vector2D int_coord;
+	double t;
+	if (theta_int > 0){
+		int_coord = return_cart_coordsspiral(logspir, theta_int);
+		t = (int_coord.z-z0)/vz;
+		if (t > 0.0001){
+			return t;
+		}
+	}
+	return -1.0;
+}
+
+
+
+
+BranchTime return_first_interaction(LogSpir logspir, float z0, float x0, float vz, float vx){
+	double t;	
+	double min_time = -1;
+	double theta_rot;
+	double theta_rot_min = -1;
+	double theta_int;
+	double theta_int_min = -1;
+
+	BranchTime brt;
+	Vector2D init_neut;
+	Neutron2Dinit(&init_neut, z0, x0, vz, vx);
+	Vector2D rotneut;
+	Vector2D *protneut;
+	protneut = &rotneut;
+	for (int kk=0; kk++; kk<logspir.branches){
+		theta_rot = -kk*logspir.theta_end;
+		//rotate the rotneut
+		rotateNeutron(protneut, init_neut, theta_rot);
+		theta_int = return_precise_theta_int(logspir, rotneut, 10);
+		t = return_intersection_time(logspir, rotneut.z, rotneut.x, rotneut.vz, rotneut.vx, theta_int);
+		if (t>0){
+			if (t<min_time || min_time<0){
+				min_time = t;
+				theta_rot_min = theta_rot;
+				theta_int_min = theta_int;
+			}
+		}
+		
+	}
+	brt.phi_rot = (theta_rot_min);
+	brt.theta_int = (theta_int_min);
+	brt.t = min_time;
+	return brt;
+
+}
+
 Vector2D return_normal_vec(LogSpir logspir, double theta){//returns the normalized normal vector to the surface
 	Vector2D n2d;
 	double k = logspir.k;
@@ -151,33 +253,38 @@ Vector2D return_normal_vec(LogSpir logspir, double theta){//returns the normaliz
 	return n2d;
 }
 
-void reflected_direction(Vector2D normal, double *z, double *x, double *vz, double *vx){
-	double vdotn = (*vz)*normal.vz + (*vx)*normal.vx;
-	(*vx) = (*vx)-2*vdotn*normal.vx;
-	(*vz) = (*vz)-2*vdotn*normal.vz;
+int evaluate_first_interaction(LogSpir logspir, Vector2D *neutron){
+	BranchTime brt;
+	brt = return_first_interaction(logspir, neutron->z, neutron->x, neutron->vz, neutron->vx);
+	double t_prop;
+	double theta_int;
+	double phi_rot;
+	Vector2D n;
+	Vector2D n_rot;
+	t_prop = brt.t;
+	theta_int = brt.theta_int;
+	phi_rot = brt.phi_rot;
+	if (t_prop < 0){
+		return 0;
+	}
+	else{
+		neutron->z = t_prop*neutron->vz;
+		neutron->x = t_prop*neutron->vx;//propagate neutron
+		n = return_normal_vec(logspir, theta_int);
+		rotateNeutron(&n_rot, n, phi_rot);
+		reflected_direction(n_rot, neutron);
+		return 1;
+	}
 }
+
+
 
 double return_time_first_interaction(LogSpir logspir, double theta_int, Vector2D *n){
 	double z_int = cos(theta_int)*return_r(theta_int, logspir.k, logspir.zstart);
 	return z_int/n->vz;
 }
 
-void Neutron2Dinit(Vector2D *neutron, double z, double x, double vz, double vx){
-	neutron->z = z;
-	neutron->x = x;
-	neutron->vz = vz;
-	neutron->vx = vx;
-}
 
-void LogSpirinit(LogSpir *logspir, double zstart, double zend, double psi, double precision, double max_iterations){
-	logspir->zstart = zstart;
-	logspir->zend = zend;
-	logspir->psi = psi;
-	logspir->psi_rad = psi*DEG2RAD;
-	logspir->k = 1/tan(logspir->psi_rad);
-	logspir->precision = precision;
-	logspir->theta_end = return_precise_theta_end(*logspir, max_iterations);
-}
 ///////////////////////////////////////////////////////////////////////////
 /////////////// End of functions
 ///////////////////////////////////////////////////////////////////////////
@@ -218,19 +325,14 @@ INITIALIZE
 
 TRACE
 %{
-
   PROP_Z0;
-  Neutron2Dinit(ptrn, z, x, vz, vx);
-  theta_int = return_precise_theta_int(logspir, *ptrn, max_iterations);
-  //printf("theta int %f\n", theta_int);
-  if (theta_int<0){
-	;
-  }else{
-  	normal = return_normal_vec(logspir, theta_int);
-  	dt = return_time_first_interaction(logspir, theta_int, ptrn);
-  	PROP_DT(dt);
-  	reflected_direction(normal, &z, &x, &vz, &vx);
-  	SCATTER;
+  
+  Neutron2Dinit(ptrn, z, x, vz, vx);//puts all of the neutron info into the pointer ptrn pointing to n
+  for (int ii = 0; ii++; ii < 100){
+	  //propagate neutron to the next interaction 
+	  //interaction = evaluate_first_interaction(logspir, ptrn);
+  }
+  
   };
 
 %}
