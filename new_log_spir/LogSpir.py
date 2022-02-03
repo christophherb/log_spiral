@@ -291,6 +291,26 @@ class LogSpir:
         rot_xdir = sin*zdir + cos*xdir
         return rot_z0, rot_x0, rot_zdir, rot_xdir
 
+    def calc_interaction_time(self, z0, x0, vz, vx, theta_int):
+        """calculates and returns the time till interaction of the neutron with the logspir returns None if no valid time is found
+
+        Args:
+            z0 (float): z-pos of neutron
+            x0 (float): x-pos of neutron
+            vz (float): z-vel of neutron
+            vx (float): x-vel of neutron
+
+        Returns:
+            float: time until interaction None if none is found
+        """
+        if theta_int:
+            z_int, _ = self.return_cart_coords(theta_int)
+            t = (z_int - z0)/vz
+            if t > 0:#need to make sure this is positive
+                return t 
+        return None # else we dont return anything
+
+
     def return_timebranch_first_interaction(self, neutron: Neutron):
         """returns the index and time of the first first possible interaction of neutron and mirror
 
@@ -307,11 +327,9 @@ class LogSpir:
             theta_rot = -ind*self.theta_end
             zi, xi, z_diri, x_diri = self.rotate_neutron(z0, x0, zdir, xdir, theta_rot)#instead of rotating the device clockwise, rotate the neutron in the opposite direction
             theta_int = self.return_precise_theata_int(zi, xi, z_diri, x_diri)
-            if theta_int:#if the angle is in the allowed limits, i.e, if the neutron hits the mirror
-                z_int, _ = self.return_cart_coords(theta_int)
-                t = (z_int - zi)/z_diri #time is calculated in the rotated system
-                if t > 0.001: #threshold such that precision does not play a role, TODO
-                    interaction_times.append((ind, t, theta_int))
+            t = self.calc_interaction_time(zi, xi, z_diri, x_diri, theta_int)
+            if t:
+                interaction_times.append((ind, t, theta_int))
         try:
             return sorted(interaction_times, key=lambda x: x[1])[0]#sort interaction times by time and return the lowest one
         except IndexError:
