@@ -2,7 +2,7 @@ from new_log_spir.LogSpir import LogSpir, Neutron
 import numpy as np
 import matplotlib.pyplot as plt
 
-p=True
+p=False
 if p:
     log = LogSpir(1, 3, 5, 4, precision=1e-8)
     print(log.theta_end)
@@ -18,7 +18,7 @@ if p:
         ax.plot(z_r, x_r, color='black', label='mirror')
         ax.plot([log.zstart, log.zend], [0, log.xend], label='approx')#approximation of the non-rotated mirror, determines
         #the initial mirror
-    for slope in np.linspace(0, 0.3):
+    for slope in np.linspace(0, 0.3, 21):
         neutron = Neutron(0, 0, 1, slope)
         path, neutron = log.propagate_neutron(neutron)
         z_path, x_path = zip(*[k[:2] for k in path])
@@ -30,8 +30,8 @@ if p:
 
 p=True
 if p:
-    log = LogSpir(1, 3, 7, 4, precision=1e-8)
-    neutron = Neutron(0, 0, 1, 0.1)
+    log = LogSpir(1, 3, 7, 2, precision=1e-8)
+    neutron = Neutron(0, 0.299755, 900.233630, -28.907642   )
     fig, ax = plt.subplots(1)
     theta_end = log.theta_end
     theta_range = np.linspace(0, theta_end, 10001)
@@ -41,10 +41,12 @@ if p:
         cos = np.cos(branch*theta_end)
         sin = np.sin(branch*theta_end)
         z_r, x_r = cos*z - sin*x, sin*z + cos*x
+        
         ax.plot(z_r, x_r, color='black', label='mirror')
         ax.plot([log.zstart, log.zend], [0, log.xend], label='approx')#approximation of the non-rotated mirror, determines
         #the initial mirror
     path, neutron = log.propagate_neutron(neutron)
+    print('this', neutron.vz, neutron.vx)
     ax.plot([neutron.z, neutron.z + log.zend], [neutron.x, neutron.x+neutron.vx/neutron.vz*log.zend], label='incoming')
     z_path, x_path = zip(*[k[:2] for k in path])
     ax.set_aspect('equal')
