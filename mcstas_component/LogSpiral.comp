@@ -301,10 +301,8 @@ int evaluate_first_interaction(LogSpir logspir, Vector2D *neutron){
 	}
 	else{
 		//if the time is valid we propagate the neutron to the surface
-
 		propagate_neutron(neutron, t_prop);//propagate neutron
 		n = return_normal_vec(logspir, theta_int);
-
 		rotate_vector(&n_rot, n, -phi_rot);//
 		reflected_direction(n_rot, neutron);
 		return 1;
