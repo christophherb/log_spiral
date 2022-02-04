@@ -322,19 +322,22 @@ class LogSpir:
         """
         z0, x0, zdir, xdir = neutron.return_coords()
         #to calculate the intersection of the neutron with each branch of the polarizer, rotate the neutron accordingly
-        interaction_times = []
+        min_time, branchind, theta_min = float('inf'), None, None
         for ind in range(self.branches):
             theta_rot = -ind*self.theta_end
             zi, xi, z_diri, x_diri = self.rotate_neutron(z0, x0, zdir, xdir, theta_rot)#instead of rotating the device clockwise, rotate the neutron in the opposite direction
             theta_int = self.return_precise_theata_int(zi, xi, z_diri, x_diri)
             t = self.calc_interaction_time(zi, xi, z_diri, x_diri, theta_int)
-            if t:
-                interaction_times.append((ind, t, theta_int))
-        try:
-            print(sorted(interaction_times, key=lambda x: x[1]))
-            return sorted(interaction_times, key=lambda x: x[1])[0]#sort interaction times by time and return the lowest one
-        except IndexError:
-            return None #if the list is empty, i.e., no interactions --> return nothing
+            if t:#only if the new time exists and is greater than 0
+                if t < min_time:
+                    min_time = t
+                    branchind = ind
+                    theta_min = theta_int
+        #now if they exist return them all
+        if branchind != None:
+            return branchind, min_time, theta_min
+        else:
+            return None
 
     def return_first_interaction(self, neutron: Neutron):
         """calculates the intersection with all spiral branches and returns the neutron after interacting with the first one reached
