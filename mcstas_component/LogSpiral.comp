@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* McStas, Vector2D ray-tracing package
+* McStas, Particle ray-tracing package
 *         Copyright (C) 1997-2011, All rights reserved
 *         Risoe National Laboratory, Roskilde, Denmark
 *         Institut Laue Langevin, Grenoble, France
@@ -38,7 +38,7 @@ SETTING PARAMETERS (
     zstart=1,
     zend=3,
     psi=5,
-    precision=1e-5,
+    precision=1e-8,
 	max_iterations=10,
 	branches = 2,
     placeholder=0
@@ -68,36 +68,46 @@ typedef struct LogSpir{
 	int branches;
 } LogSpir;//logspiral will be our surface to reflect from; nice
 
-typedef struct Vector2D{
+typedef struct Particle{
 	double z;
+	double y;
 	double x;
 	double vz;
+	double vy;
 	double vx;
-} Vector2D;//Structure for a 2D Vector2D
+} Particle;//Structure for a 2D Particle
 
 typedef struct BranchTime{
 	double phi_rot;//rotation angle of the branch
 	double t;//time of interaction
 	double theta_int;//angle under which the interaction takes place
-} BranchTime;//Structure for a 2D Vector2D
+} BranchTime;//Structure for a 2D Particle
 
-double returnz(Vector2D n){
+double returnz(Particle n){
 	return n.z;
 }
 
-double returnvz(Vector2D n){
+double returnvz(Particle n){
 	return n.vz;
 }
 
-double returnx(Vector2D n){
+double returny(Particle n){
+	return n.y;
+}
+
+double returnvy(Particle n){
+	return n.vy;
+}
+
+double returnx(Particle n){
 	return n.x;
 }
 
-double returnvx(Vector2D n){
+double returnvx(Particle n){
 	return n.vx;
 }
 
-void rotate_vector(Vector2D *neutron, Vector2D initneut, double theta_rot){
+void rotate_vector(Particle *neutron, Particle initneut, double theta_rot){
 	double sint = sin(theta_rot);
 	double cost = cos(theta_rot);
 	neutron->z = cost*initneut.z - sint*initneut.x;
@@ -108,15 +118,17 @@ void rotate_vector(Vector2D *neutron, Vector2D initneut, double theta_rot){
 	
 	
 	
-Vector2D Neutron2Dinit(Vector2D *neutron, double z, double x, double vz, double vx){
+Particle Neutron2Dinit(Particle *neutron, double z, double y, double x, double vz, double vy, double vx){
 	neutron->z = z;
 	neutron->x = x;
 	neutron->vz = vz;
 	neutron->vx = vx;
+	neutron->y = y;
+	neutron->vy = vy;
 	return *neutron;
 }
 
-void reflected_direction(Vector2D normal, Vector2D *neutron){
+void reflected_direction(Particle normal, Particle *neutron){
 	double vz = neutron->vz;
 	double vx = neutron->vx;
 	double vdotn = vz*normal.vz + vx*normal.vx;
@@ -142,8 +154,8 @@ double return_r(double theta, double k, double zstart){
     return zstart*exp(k*theta);
 };
 
-Vector2D return_cart_coordsspiral(LogSpir logspir, double theta){
-	struct Vector2D n;
+Particle return_cart_coordsspiral(LogSpir logspir, double theta){
+	struct Particle n;
 	double r = return_r(theta, logspir.k, logspir.zstart);
 	n.z = cos(theta)*r;
 	n.x = sin(theta)*r;
@@ -186,7 +198,7 @@ double return_approx_theta_int(LogSpir logspir){//approximating by intersection 
 	return logspir.theta_end/2;
 }
 
-double return_precise_theta_int(LogSpir logspir, Vector2D n, double max_iterations){//
+double return_precise_theta_int(LogSpir logspir, Particle n, double max_iterations){//
 	double theta_0, theta_n;
 	double m = n.vx/n.vz;
 	double x0 = n.x-n.z/n.vz*n.vx;
@@ -213,7 +225,7 @@ double return_precise_theta_int(LogSpir logspir, Vector2D n, double max_iteratio
 }
 
 float return_intersection_time(LogSpir logspir, double z0, double x0, double vz, double vx, double theta_int){
-	Vector2D int_coord;
+	Particle int_coord;
 	double t;
 	if (theta_int > 0){
 		int_coord = return_cart_coordsspiral(logspir, theta_int);//cart coords of the interaction
@@ -239,9 +251,9 @@ BranchTime return_first_interaction(LogSpir logspir, float z0, float x0, float v
 	double theta_int_min = -1;
 
 	BranchTime brt;
-	Vector2D init_neut;
-	init_neut = Neutron2Dinit(&init_neut, z0, x0, vz, vx);
-	Vector2D rotneut;
+	Particle init_neut;
+	init_neut = Neutron2Dinit(&init_neut, z0, 0, x0, vz, 0, vx);//don't need y for this so we just put it to zero
+	Particle rotneut;
 	for (int kk=0; kk<logspir.branches; kk++){//instead of rotating the device we rotate neutron to calculate the intersection time--> lowest wins 
 		theta_rot = -kk*logspir.theta_end;
 		//rotate the rotneut
@@ -258,7 +270,8 @@ BranchTime return_first_interaction(LogSpir logspir, float z0, float x0, float v
 		}
 		
 	}
-	printf("phi rot %f, theta_int %f, time %f", theta_rot_min, theta_int_min, min_time);
+	//
+//printf("phi rot %f, theta_int %f, time %f", theta_rot_min, theta_int_min, min_time);
 	brt.phi_rot = (theta_rot_min);
 	brt.theta_int = (theta_int_min);
 	brt.t = min_time;
@@ -266,8 +279,8 @@ BranchTime return_first_interaction(LogSpir logspir, float z0, float x0, float v
 
 }
 
-Vector2D return_normal_vec(LogSpir logspir, double theta){//returns the normalized normal vector to the surface
-	Vector2D n2d;
+Particle return_normal_vec(LogSpir logspir, double theta){//returns the normalized normal vector to the surface
+	Particle n2d;
 	double k = logspir.k;
 	double prefac = 1/sqrt(1+k*k);
 	n2d.vz = (cos(theta)+k*sin(theta))*prefac;
@@ -275,23 +288,24 @@ Vector2D return_normal_vec(LogSpir logspir, double theta){//returns the normaliz
 	return n2d;
 }
 
-void reflect_neutron(Vector2D *incoming, Vector2D normal){
+void reflect_neutron(Particle *incoming, Particle normal){
 
 }
 
-void propagate_neutron(Vector2D *incoming, double dt){
+void propagate_neutron(Particle *incoming, double dt){
 	incoming->x += incoming->vx*dt;
 	incoming->z += incoming->vz*dt;
+	incoming->y += incoming->vy*dt;
 }
 
-int evaluate_first_interaction(LogSpir logspir, Vector2D *neutron){
+int evaluate_first_interaction(LogSpir logspir, Particle *neutron){
 	BranchTime brt;
 	brt = return_first_interaction(logspir, neutron->z, neutron->x, neutron->vz, neutron->vx);
 	double t_prop;
 	double theta_int;
 	double phi_rot;
-	Vector2D n;
-	Vector2D n_rot;
+	Particle n;
+	Particle n_rot;
 	t_prop = brt.t;
 	theta_int = brt.theta_int;
 	phi_rot = brt.phi_rot;
@@ -311,7 +325,7 @@ int evaluate_first_interaction(LogSpir logspir, Vector2D *neutron){
 
 
 
-//double return_time_first_interaction(LogSpir logspir, double theta_int, Vector2D *n){
+//double return_time_first_interaction(LogSpir logspir, double theta_int, Particle *n){
 //	double z_int = cos(theta_int)*return_r(theta_int, logspir.k, logspir.zstart);
 //	return z_int/n->vz;
 //}
@@ -320,7 +334,7 @@ int evaluate_first_interaction(LogSpir logspir, Vector2D *neutron){
 ///////////////////////////////////////////////////////////////////////////
 /////////////// End of functions
 ///////////////////////////////////////////////////////////////////////////
-//Vector2D n;
+//Particle n;
 
 
 %}
@@ -332,7 +346,7 @@ DECLARE
 	double theta_int;
 	LogSpir logspir;
 	LogSpir *logspirp;
-	Vector2D normal;
+	Particle normal;
 %}
 
 INITIALIZE
@@ -355,13 +369,13 @@ INITIALIZE
 
 TRACE
 %{
-  Vector2D n;
+  Particle n;
   
-  Vector2D *ptrn;
+  Particle *ptrn;
   ptrn = &n;
   PROP_Z0;
-  printf("\n z=%f x=%f vz=%f vx=%f \n", z, x, vz, vx);
-  n = Neutron2Dinit(ptrn, z, x, vz, vx);//puts all of the neutron info into the pointer ptrn pointing to n
+  //printf("\n z=%f y=%f x=%f vz=%f vy=%f vx=%f \n", z, y, x, vz, vy, vx);
+  n = Neutron2Dinit(ptrn, z, y, x, vz, vy, vx);//puts all of the neutron info into the pointer ptrn pointing to n
   for (int ii = 0; ii < 100; ii++){
 	  //propagate neutron to the next interaction 
 	  interaction = evaluate_first_interaction(logspir, ptrn);
@@ -373,9 +387,11 @@ TRACE
   }
   z  = returnz(n);
   vz = returnvz(n);
+  y  = returny(n);
+  vy = returnvy(n);
   x  = returnx(n);
   vx = returnvx(n);
-  printf("\n after interaction z=%f x=%f vz=%f vx=%f \n", z, x, vz, vx);
+  //printf("\n z=%f y=%f x=%f vz=%f vy=%f vx=%f \n", z, y, x, vz, vy, vx);
    //
 
 
