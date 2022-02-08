@@ -1,8 +1,52 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+import random as rn
 rad2deg = 180/np.pi
 deg2rad = 1/rad2deg
+V2Q_conic = 1.58825361e-3
+
+def calc_supermirror_reflectivity(m, q, alpha=2.85, W=0.002):
+    Q_c = 0.0218
+    arg = 0
+    beta = 0
+    R_0 = 0.995
+    #alpha = 2.5
+    #W = 0.004
+    weight = 1
+    if m >= 10:
+        return weight
+    q = abs(q)
+    if (W==0 and alpha==0):
+        m=m*0.9853+0.1978
+        W=-0.0002*m+0.0022
+        alpha=0.2304*m+5.0944
+        beta=-7.6251*m+68.1137
+        if (m<=3):
+	        alpha=m
+	        beta=0
+    if W > 0:
+        arg = (q - m*Q_c)/W
+    else:
+        arg = 11
+
+    if (arg > 10 or m <= 0 or Q_c <=0 or R_0 <= 0):
+        weight = 0
+        return weight
+
+
+    if (m < 1):
+        Q_c *= m
+        m=1
+
+    if(q <= Q_c):
+        weight = R_0
+        return weight
+
+
+
+    weight = R_0*0.5*(1 - np.tanh(arg))*(1 - alpha*(q - Q_c) + beta*(q - Q_c)*(q - Q_c))
+
+    return weight
 
 class Neutron:
     def __init__(self, z, x, vz, vx) -> None:
@@ -39,7 +83,7 @@ class Neutron:
         return self.z + self.vz*dt, self.x+self.vx*dt, self.vz, self.vx
 
 class LogSpir:
-    def __init__(self, zstart: float, zend: float, psi: float, branches: int, precision: float = 1e-7) -> None:
+    def __init__(self, zstart: float, zend: float, psi: float, branches: int, precision: float = 1e-7, phi_rot: float = 0) -> None:
         """initializes the logarithmic mirror r(theta) = zstart * exp(k*theta), with k = cotan(psi)
            and r = sqrt(z*z + x*x)
 
@@ -58,11 +102,12 @@ class LogSpir:
         self.psi_rad = psi*deg2rad
         self.k = 1/np.tan(self.psi_rad) #helper variable showing in the formula
         self.precision=precision
+        self.m = 4
         #function and derivative are used to find the angle theta at which the z_value of the spiral equals zend
         self.function = lambda theta: np.cos(theta)*self.zstart*np.exp(self.k*theta)-self.zend
         self.derivative = lambda theta: self.zstart*np.exp(self.k*theta)*(np.cos(theta)*self.k-np.sin(theta))
-
         self.theta_end = self.return_precise_theta_end(self.zend)
+        self.phi_rot = self.theta_end if phi_rot == 0 else phi_rot
         self.xend = self.zend*np.tan(self.theta_end)
         self.branches = branches
 
@@ -207,7 +252,7 @@ class LogSpir:
                     return thetan
                 return None
             theta0 = thetan
-        print('non applicable')
+        #print('non applicable')
         return None
 
     def return_inters_coords(self, neutron: Neutron):
@@ -254,8 +299,13 @@ class LogSpir:
             (tuple): (rz, rx): tuple comprising the z and x direction of the reflected neutron
         """
         vdotn = nz*zdir + nx*xdir
-        rz, rx = zdir-2*vdotn*nz, xdir-2*vdotn*nx #classic reflected direction
-        return rz, rx
+        weight = calc_supermirror_reflectivity(self.m, vdotn*2*V2Q_conic)
+        print(weight)
+        if rn.random()<weight:
+            rz, rx = zdir-2*vdotn*nz, xdir-2*vdotn*nx #classic reflected direction
+            return rz, rx
+        else:
+            return zdir, xdir
 
     def rotate_vector(self, z, x, theta):
         """quick function to return a vector rotated around the origin by an angle theta
@@ -324,7 +374,7 @@ class LogSpir:
         #to calculate the intersection of the neutron with each branch of the polarizer, rotate the neutron accordingly
         min_time, branchind, theta_min = float('inf'), None, None
         for ind in range(self.branches):
-            theta_rot = -ind*self.theta_end
+            theta_rot = -ind*self.phi_rot
             zi, xi, z_diri, x_diri = self.rotate_neutron(z0, x0, zdir, xdir, theta_rot)#instead of rotating the device clockwise, rotate the neutron in the opposite direction
             theta_int = self.return_precise_theata_int(zi, xi, z_diri, x_diri)
             t = self.calc_interaction_time(zi, xi, z_diri, x_diri, theta_int)
