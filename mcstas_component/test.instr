@@ -25,7 +25,7 @@
 *******************************************************************************/
 DEFINE INSTRUMENT logspir_test(
     source_width=0.001,
-    source_divergence=4,
+    source_divergence=75,
     L_source=5,
     dL=2,
     branches=5,

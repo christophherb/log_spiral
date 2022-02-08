@@ -5,13 +5,13 @@ plt.style.use("/home/cherb/LRZSync/Doktorarbeit/Vorlagen_Verschiedenes/stylelibs
 from random import normalvariate
 p=1
 if p:
-    log = LogSpir(0.15, 0.3, 1.55, 6, precision=1e-8)
-    log.m = 6
+    log = LogSpir(0.15, 0.3, 1.55, 6, precision=1e-8, phi_rot=0)
+    log.m = 5
     print(log.theta_end)
     fig, ax = plt.subplots(1, figsize=(7, 7))
     v0 = 660
     theta_end = log.theta_end
-    theta_range = np.linspace(0, theta_end, 1001)
+    theta_range = np.linspace(0, theta_end, 10001)
     z, x = log.return_cart_coords(theta_range)
     for slope in np.linspace(0, 0.0324, 501):
         z0 = 0.7
@@ -35,8 +35,8 @@ if p:
 
         ax.plot(z_path, x_path, ls='-', marker=' ')
     for branch in range(log.branches):#plotting all spirals of the log spiral for testing
-        cos = np.cos(branch*theta_end)
-        sin = np.sin(branch*theta_end)
+        cos = np.cos(branch*log.phi_rot)
+        sin = np.sin(branch*log.phi_rot)
         z_r, x_r = cos*z - sin*x, sin*z + cos*x
 
         #ax.plot([log.zstart, log.zend], [0, log.xend], label='approx', linestyle='-', marker=' ')#approximation of the non-rotated mirror, determines
