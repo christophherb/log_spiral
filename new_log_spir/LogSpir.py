@@ -300,7 +300,7 @@ class LogSpir:
         """
         vdotn = nz*zdir + nx*xdir
         weight = calc_supermirror_reflectivity(self.m, vdotn*2*V2Q_conic)
-        print(weight)
+        #print(weight)
         if rn.random()<weight:
             rz, rx = zdir-2*vdotn*nz, xdir-2*vdotn*nx #classic reflected direction
             return rz, rx

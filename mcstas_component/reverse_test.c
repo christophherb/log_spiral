@@ -1,15 +1,15 @@
 /* Automatically generated file. Do not edit. 
  * Format:     ANSI C source code
  * Creator:    McStas <http://www.mcstas.org>
- * Instrument: test.instr (logspir_test)
- * Date:       Mon Feb  7 16:12:26 2022
- * File:       ./test.c
- * Compile:    cc -o logspir_test.out ./test.c 
+ * Instrument: reverse_test.instr (logspir_test)
+ * Date:       Tue Feb  8 13:18:12 2022
+ * File:       ./reverse_test.c
+ * Compile:    cc -o logspir_test.out ./reverse_test.c 
  * CFLAGS=
  */
 
 
-#define MCCODE_STRING "McStas 2.6.1 - May. 04, 2020"
+#define MCCODE_STRING "McStas 2.7 - Nov. 27, 2020"
 #define FLAVOR "mcstas"
 #define FLAVOR_UPPER "MCSTAS"
 #define MC_USE_DEFAULT_MAIN
@@ -29,7 +29,7 @@
 * %Identification
 * Written by: KN
 * Date:    Aug 29, 1997
-* Release: McStas 2.6.1
+* Release: McStas 2.7
 * Version: $Revision$
 *
 * Runtime system header for McStas/McXtrace.
@@ -112,15 +112,15 @@
 
 /* the version string is replaced when building distribution with mkdist */
 #ifndef MCCODE_STRING
-#define MCCODE_STRING "McStas 2.6.1 - May. 04, 2020"
+#define MCCODE_STRING "McStas 2.7 - Nov. 27, 2020"
 #endif
 
 #ifndef MCCODE_DATE
-#define MCCODE_DATE "May. 04, 2020"
+#define MCCODE_DATE "Nov. 27, 2020"
 #endif
 
 #ifndef MCCODE_VERSION
-#define MCCODE_VERSION "2.6.1"
+#define MCCODE_VERSION "2.7"
 #endif
 
 #ifndef MCCODE_NAME
@@ -709,7 +709,7 @@ NXhandle nxhandle;
 #endif /* MCCODE_R_H */
 /* End of file "mccode-r.h". */
 
-#line 712 "./test.c"
+#line 712 "./reverse_test.c"
 
 #line 1 "mcstas-r.h"
 /*******************************************************************************
@@ -750,7 +750,7 @@ NXhandle nxhandle;
 #ifndef MCSTAS_R_H
 #define MCSTAS_R_H "$Revision$"
 
-/* Following part is only embedded when not redundent with mcstas.h ========= */
+/* Following part is only embedded when not redundant with mcstas.h ========= */
 
 #ifndef MCCODE_H
 
@@ -942,7 +942,7 @@ void mcsetstate(double x, double y, double z, double vx, double vy, double vz,
 #endif /* MCSTAS_R_H */
 /* End of file "mcstas-r.h". */
 
-#line 945 "./test.c"
+#line 945 "./reverse_test.c"
 
 #line 1 "mccode-r.c"
 /*******************************************************************************
@@ -1462,7 +1462,7 @@ MCDETECTOR mcdetector_statistics(
   MCDETECTOR detector)
 {
 
-  if (!detector.p1 || !detector.m || !detector.filename)
+  if (!detector.p1 || !detector.m)
     return(detector);
   
   /* compute statistics and update MCDETECTOR structure ===================== */
@@ -4974,7 +4974,7 @@ void neutronics_main_(float *inx, float *iny, float *inz, float *invx, float *in
 /* End of file "mccode-r.c". */
 /* End of file "mccode-r.c". */
 
-#line 4977 "./test.c"
+#line 4977 "./reverse_test.c"
 
 #line 1 "mcstas-r.c"
 /*******************************************************************************
@@ -5334,16 +5334,16 @@ plane_intersect(double *t, double x, double y, double z,
 #endif /* !MCSTAS_H */
 /* End of file "mcstas-r.c". */
 
-#line 5337 "./test.c"
+#line 5337 "./reverse_test.c"
 #ifdef MC_TRACE_ENABLED
 int mctraceenabled = 1;
 #else
 int mctraceenabled = 0;
 #endif
-#define MCSTAS "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../"
+#define MCSTAS "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../"
 int mcdefaultmain = 1;
 char mcinstrument_name[] = "logspir_test";
-char mcinstrument_source[] = "test.instr";
+char mcinstrument_source[] = "reverse_test.instr";
 char *mcinstrument_exe=NULL; /* will be set to argv[0] in main */
 int main(int argc, char *argv[]){return mccode_main(argc, argv);}
 void mcinit(void);
@@ -5352,8 +5352,1924 @@ void mcsave(FILE *);
 void mcfinally(void);
 void mcdisplay(void);
 
+/* Shared user declarations for all components 'PSD_monitor'. */
+#line 57 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+
+#ifndef ARRAYS_H
+#define ARRAYS_H
+typedef double* DArray1d;
+DArray1d create_darr1d(int n);
+void destroy_darr1d(DArray1d a);
+
+typedef double** DArray2d;
+DArray2d create_darr2d(int nx, int ny);
+void destroy_darr2d(DArray2d a);
+
+typedef double*** DArray3d;
+DArray3d create_darr3d(int nx, int ny, int nz);
+void destroy_darr3d(DArray3d a);
+#endif
+#ifndef ARRAYS_C
+#define ARRAYS_C
+#include <stdlib.h>
+
+DArray1d create_darr1d(int n){
+  DArray1d arr2d;
+  arr2d = calloc(n, sizeof(double));
+  return arr2d;
+}
+void destroy_darr1d(DArray1d a){
+  free(a);
+}
+
+DArray2d create_darr2d(int nx, int ny){
+  DArray2d arr2d;
+  arr2d = calloc(nx, sizeof(double *));
+
+  double *p1;
+  p1 = calloc(nx*ny, sizeof(double));
+
+  int i;
+  for (i=0; i<nx; i++){
+    arr2d[i] = &(p1[i*ny]);
+  }
+  return arr2d;
+}
+void destroy_darr2d(DArray2d a){
+  free(a[0]);
+  free(a);
+}
+
+DArray3d create_darr3d(int nx, int ny, int nz){
+  DArray3d arr3d;
+  int i, j;
+
+  // 1d
+  arr3d = calloc(nx, sizeof(double **));
+
+  // d2
+  double **p1;
+  p1 = calloc(nx*ny, sizeof(double *));
+
+  for (i=0; i<nx; i++){
+    arr3d[i] = &(p1[i*ny]);
+  }
+
+  // 3d
+  double *p2;
+  p2 = calloc(nx*ny*nz, sizeof(double));
+  for (i=0; i<nx; i++){
+    for (j=0; j<ny; j++){
+      arr3d[i][j] = &(p2[(i*ny+j)*nz]);
+    }
+  }
+  return arr3d;
+}
+void destroy_darr3d(DArray3d a){
+  free(a[0][0]);
+  free(a[0]);
+  free(a);
+}
+#endif
+
+#line 5435 "./reverse_test.c"
+
+/* Shared user declarations for all components 'FlatEllipse_finite_mirror'. */
+#line 54 "FlatEllipse_finite_mirror.comp"
+/**
+\mainpage
+Simple Meta-Conic Neutron Raytracer is a framework for raytracing geometries of the form: @f$ r^2=k_1 + k_2 z + k_3 z^2 @f$.
+
+<h3>General Notes</h3>
+To use the software you must make a Scene element using the function makeScene(). You must then add items to this scene element using the various add function (addDisk(), addParaboloid(), etc...). Next you must call the function traceSingleNeutron() for every neutron you would like to trace through the geometry. The maximum number of each geometry you can place in a scene is defined by the MAX_CONICSURF, MAX_DISK and MAX_DETECTOR definitions in the conic.h file.
+
+<h3>TODO</h3>
+
+@todo
+       Name variable for each component <br/>
+       Normalize Detector Events by weight of neutron <br/>
+
+<h3>Known Bugs</h3>
+@bug  HPPH works incorrectly for M != 1 <br/>
+      Neutrons t=1e-11 away from a surface will pass through <br/>
+
+<h3>Note on Pointers</h3>
+This framework uses pointers extensivly. It is important to be familiar with how to use pointers.
+<br/>Here is a quick overview.
+
+@code
+//Making an Element
+ConicSurf c = makeParaboloid(...);
+int k = 10;
+
+//Making a Pointer from an Element
+ConicSurf * c_pointer = &c;
+int * k_pointer = &k;
+
+//Making an Element from a Pointer
+ConicSurf c2 = *c_pointer;
+int ten = *k_pointer;
+
+//Getting Item in Element
+double k1 = c.k1;
+
+//Getting Item in Element from a Pointer
+double k1 = c_pointer->k1;
+
+//Functions that have pointers as parameters can modify the element being pointed to.
+//Functions that have elements as parameters can not modify the value of the element.
+@endcode
+
+<h3>Stand Alone Example Code</h3>
+This framework can be used entirely by itself as the following example demonstrates.
+@code
+/////////////////////////////////////////////////////////////////////////////////
+// Giacomo Resta <gresta@mit.edu>
+//
+// Basic standalone exmaple of a raytracer. It is advised to modify
+// the getRandom() function to use a better random number generator (i.e. glib).
+// The systems random generator was used to preserve clarity and conciseness.
+/////////////////////////////////////////////////////////////////////////////////
+
+#include <math.h>
+#include <stdio.h>
+
+#include "conic.h"
+#include "w1_general.h"
+
+#define NUM_NEUTRON 1000000
+*/
+//Function to get random number
+double getRandom() {
+    return (double)lrand48()/RAND_MAX;
+}
+/*
+//Function to get new particle from source
+Particle generateParticleFromSource(double radius, double div, double Lambda0,
+        double num_neutrons) {
+
+    double chi = 2*M_PI*(getRandom());
+    double r = sqrt(getRandom()) * radius;
+
+    double v = 3956.036 / Lambda0;
+
+    double theta = sqrt(getRandom())*div;
+    double phi = getRandom()*2*M_PI;
+    double tan_r = tan(theta);
+
+    double vz = v/sqrt(1+tan_r*tan_r);
+    double vr = tan_r * vz;
+
+    return makeParticle(r*cos(chi),r*sin(chi),0,cos(phi)*vr,sin(phi)*vr,
+                vz,0,0.0,0.0,0.0,1.0/num_neutrons);
+}
+
+//Function to add items to scene
+void addItems(Scene* s, double instr_len,double r,double f,double M,
+        double max_mir_len,double m, double mirr_thick) {
+
+    //Change code here to make different Scenes
+    PP p = addPPShell(0.0, instr_len, r, f, M, max_mir_len, m, m, mirr_thick, s);
+    addDisk(p.p0->zs, 0.0, rConic(p.p0->ze, *p.p0)*p.p0->zs/p.p0->ze, s);
+    addDisk(p.p1->zs, rConic(p.p1->zs, *p.p1), 10000,s);
+    addDetector(10.0, -0.01, 0.01, -0.01, 0.01, 600, 600, NUM_NEUTRON, "test.txt", s);
+}
+
+//Main Function
+int main() {
+    //seed random generator (starts the generator)
+    srand48((long)time(0));
+
+    //Make a new Scene
+    Scene s = makeScene();
+
+    //Add Items and initialize Scene
+    addItems(&s,10.0,0.068,4.2,1,0.7,3,0.001);
+    initSimulation(&s);
+
+    //Raytrace all particles through the Scene
+    double i;
+    for (i = 0; i < NUM_NEUTRON; i++) {
+        Particle p = generateParticleFromSource(0.005, 0.02422, 4, NUM_NEUTRON);
+        traceSingleNeutron(&p,s);
+    }
+
+    //Finish Simulation of the Scene
+    finishSimulation(&s);
+
+    return 0;
+}
+@endcode
+
+*/
+
+/**
+    @file conic.h
+    \brief General Framework for generating and raytracing geometries of the
+    form @f$ r = k_1+k_2 z+k_3 z^2 @f$
+
+    @author Giacomo Resta <gresta@mit.edu>
+    @version 0.2
+
+    @section LICENSE
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the Software
+    is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+    INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+    PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+    FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+    @section DESCRIPTION
+     General Framework for generating and raytracing geometries of the form
+     @f$ r = k_1+k_2 z+k_3 z^2 @f$
+*/
+
+/////////////////////////////////////
+// Simulation
+/////////////////////////////////////
+
+#ifndef MIT_CONICS
+#define MIT_CONICS
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+/** @defgroup simgroup Simulator Internals
+    Contains items general to the simulation
+    @{
+*/
+//! Max number of ConicSurf allowed in a Scene
+#define MAX_FLATSURF 200
+
+//! Max number of ConicSurf allowed in a Scene
+#define MAX_CONICSURF 100
+
+//! Max number of Disks allowed in a Scene
+#define MAX_DISK 100
+
+//! Max number of Detectors allowed in a Scene
+#define MAX_DETECTOR 10
+
+//! If "1" simulator will record z location where neutron with greatest grazing angle reflected for each ConicSurf
+/*! The information is stored in the max_ga and max_ga_z0 members of each ConicSurf, which are only present if
+    this flag is 1. See source code for clarification.
+
+@note You must use default traceNeutronConic function or implement saving routine yourself */
+#define REC_MAX_GA 0
+
+#define V2Q_conic 1.58825361e-3
+#define Q2V_conic 629.622368
+#define POT_V 46.839498800356665//theta_crit = 4 pi^2 kappa^2/m_n^2
+#define m_Si 0.478 // m-value of pure silicon
+//! Stucture to represent a point
+typedef struct {
+    double x; //!< x-axis position of point
+    double y; //!< y-axis position of point
+    double z; //!< z-axis position of point
+} Point;
+
+//! Structure to represent a vector
+typedef struct {
+    double x; //!< x-axis length of vector
+    double y; //!< y-axis length of vector
+    double z; //!< z-axis length of vector
+} Vec;
+
+//! Structure to represent a particle
+typedef struct {
+    double _x; //!< x axis position of particle
+    double _y; //!< y axis position of particle
+    double _z; //!< z axis position of particle
+    double _vx; //!< x axis components of velocity
+    double _vy; //!< y axis components of velocity
+    double _vz; //!< z axis components of velocity
+    double _sx; //!< x spin vector components
+    double _sy; //!< y spin vector components
+    double _sz; //!< z spin vector components
+    double w; //!< Weight of particle
+    int silicon; //!< +1 if Particle is in silicon -1 if Particle is in air
+    int absorb; //!< Absorb flag (0 is not absorbed)
+    double _t; //!< Time of flight of particle
+} Particle;
+
+/*! \brief Function to make a point
+
+@param x x-axis position
+@param y y-axis position
+@param z z-axis position
+*/
+Point makePoint(double x, double y, double z) {
+    Point p;
+    p.x = x;
+    p.y = y;
+    p.z = z;
+
+    return p;
+}
+
+/*! \brief Function to make a vector
+
+@param x x-axis length
+@param y y-axis length
+@param z z-axis length
+*/
+Vec makeVec(double x, double y, double z) {
+    Vec p;
+    p.x = x;
+    p.y = y;
+    p.z = z;
+
+    return p;
+}
+
+//! Function to compute length of a vector
+double getMagVec(Vec v) {
+    return sqrt(v.x*v.x+v.y*v.y+v.z*v.z);
+}
+
+//! Function to compute dot product of two vectors
+double dotVec(Vec v1, Vec v2) {
+    return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+}
+
+//! Function to compute the sum of two vectors
+Vec difVec(Vec v1, Vec v2){
+    return makeVec(v1.x-v2.x, v1.y-v2.y, v1.z-v2.z);
+}
+
+//! Function to compute the sum of two vectors
+Vec sumVec(Vec v1, Vec v2){
+    return makeVec(v1.x+v2.x, v1.y+v2.y, v1.z+v2.z);
+}
+
+//! Function to compute the sum of two vectors
+Vec skalarVec(Vec v1, double k){
+    return makeVec(v1.x*k, v1.y*k, v1.z*k);
+}
+/*! \brief Function to make a particle
+
+@param x x-axis position
+@param y y-axis position
+@param z z-axis position
+@param vx x-axis velocity
+@param vy y-axis velocity
+@param vz z-axis velocity
+@param t time of flight of neutron
+@param sx x-axis component of spin vector
+@param sy y-axis component of spin vector
+@param sz z-axis component of spin vector
+@param w weight of particle
+*/
+Particle makeParticle(double x, double y, double z,
+    double vx, double vy, double vz, double t,
+    double sx, double sy, double sz, int silicon, double w) {
+
+    Particle pa;
+
+    pa._x = x;
+    pa._y = y;
+    pa._z = z;
+
+    pa._vx = vx;
+    pa._vy = vy;
+    pa._vz = vz;
+
+    pa._sx = sx;
+    pa._sy = sy;
+    pa._sz = sz;
+    pa.silicon = silicon;
+    pa.w = w;
+
+    pa.absorb = 0;
+    pa._t = t;
+
+    return pa;
+}
+
+//! Function to get position of particle
+Point getParticlePos(Particle p) {
+    return makePoint(p._x,p._y,p._z);
+}
+
+//! Function to get velocity vector of particle
+Vec getParticleVel(Particle p) {
+    return makeVec(p._vx, p._vy, p._vz);
+}
+
+/*! \brief Function to move particle a specific time step.
+
+Will not move particle if t < 0. Does not simulate
+gravity.
+
+@param t time step to move particle
+@param p pointer to particle
+*/
+void moveParticleT(double t, Particle* p) {
+    if (t < 0)
+        return;
+    if (p->silicon>0){
+        p->_x = p->_x+p->_vx*t;
+        p->_y = p->_y+p->_vy*t;
+        p->_z = p->_z+p->_vz*t;
+        p->_t = p->_t+t;
+        p->w *= exp(-t*98900/52.338);//ugly hard coding in the penetration depth of silicon at 989 m/s
+        //absorbParticle(p);
+    }
+    else{
+        p->_x = p->_x+p->_vx*t;
+        p->_y = p->_y+p->_vy*t;
+        p->_z = p->_z+p->_vz*t;
+        p->_t = p->_t+t;
+    }
+}
+
+/*! \brief Function to move particle to position z.
+
+Will not move particle if moving particle to z
+position would require negative time.
+Does not simulate gravity.
+
+@param z z-position to move particle
+@param p pointer to particle
+*/
+void moveParticleZ(double z, Particle* p) {
+    double t = (z-p->_z)/p->_vz;
+    moveParticleT(t, p);
+}
+
+/*! \brief Function to compute new position of particle
+without modifying the position of the actual particle.
+
+Will not move particle if t < 0. Does not simulate gravity.
+
+@param t timestep to move particle
+@param p particle
+*/
+Particle copyMoveParticleT(double t, Particle p) {
+    Particle p2 = p;
+    moveParticleT(t,&p2);
+    return p2;
+}
+
+/*! \brief Function to move particle to position z
+without modifying the position of the actual particle.
+
+Will not move particle if moving particle to z
+position would require negative time.
+Does not simulate gravity.
+
+@param z z-position to move particle
+@param p pointer to particle
+*/
+Particle copyMoveParticleZ(double z, Particle p) {
+    Particle p2 = p;
+    moveParticleZ(z,&p2);
+    return p2;
+}
+
+/*! \brief Mathematical Aid for Snell's Law for reflection.
+
+Does not take into account grazing angle constrictions.
+Only computes mathematical reflection.
+
+@param n Normal vector
+@param p Pointer to particle
+*/
+void reflectParticle(Vec n, Particle* p) {
+    double vn = dotVec(getParticleVel(*p),n);
+
+    p->_vx = p->_vx-2*vn*n.x;
+    p->_vy = p->_vy-2*vn*n.y;
+    p->_vz = p->_vz-2*vn*n.z;
+}
+
+/*! \brief Function to mark particle as absorbed
+
+@param p Pointer to particle to be absorbed */
+void absorbParticle(Particle* p)  {
+    p->_vx = 0;
+    p->_vy = 0;
+    p->_vz = 0;
+    p->w = 0;
+    p->absorb = 1;
+}
+
+/*! \brief Function to set weight of particle.
+
+Will set the weight of the particle to w.  */
+void setWeightParticle(double w, Particle* pa) {
+    pa->w = w;
+}
+
+/*! \brief Function to solve quadratic equations for smallest positive result.
+
+If no positive result returns -1. Parameters are coefficents such that
+@f$ 0=A z^2 + B z + C @f$
+
+@return Will return smallest positive value or -1 if no smallest positive value
+*/
+double solveQuad(double A, double B, double C) {
+    if (fabs(A) < 1e-11 && B != 0)           //FIXME: 1e-11 cutoff may cause problems
+        return -C/B;
+    else {
+        double det = B*B - 4*A*C;
+        if (det < 0)
+            return -1;
+        else {
+            double sdet = sqrt(det);
+            double s1 = (-B+sdet)/(2*A);
+            double s2 = (-B-sdet)/(2*A);
+
+            if (fabs(s1) < 1e-11) s1=0.0;     //FIXME: 1e-11 cutoff may cause problems
+            if (fabs(s2) < 1e-11) s2=0.0;     //FIXME: 1e-11 cutoff may cause problems
+
+            if (s1 > 0.0) {
+                if (s2 > 0.0) {
+                    if (s1 > s2)
+                        return s2;
+                    return s1;
+                }
+                else
+                    return s1;
+           }
+           if (s2 > 0.0)
+               return s2;
+        }
+    }
+    return -1;
+}
+
+//! Returns sign of x, either -1 or 1
+int sign(double x) {
+    if (x < 0)
+        return -1;
+    return 1;
+}
+
+/** @} */ //end of simgroup
+
+/*! @ingroup detectorgroup
+\brief Structure for representing inline detectors
+
+@warning Do not directly modify this structure*/
+typedef struct {
+    double z0; //!< z-axis position of detector
+    double xmin; //!< Smallest x value to detect
+    double xmax; //!< Largest x value to detect
+    double xstep; //!< x size of subsampling pixel
+    double ymin; //!< Smallest y value to detect
+    double ymax; //!< Largest y value to detect
+    double ystep; //!< y size of subsampling pixel
+    int nrows;    //!< Number of pixels along y axis
+    int ncols;    //!< Number of pixels along x axis
+    double num_particles; //!< Number of particles being emitted from source
+    double *num_count; //!< Pointer to the number of particles that hit detector
+    double **data; //!< Pointer to 2d data, pixel_x_y = data[x][y]
+    char* filename; //!< Name of output file of detector (should end in .txt)
+} Detector;
+
+/*! @ingroup diskgroup
+\brief Structure for representing Disk geometry
+
+ Creates a doughnut with inner radius r0 and outer radus r1 at position z0.
+Neutrons between r0 and r1 are absorbed. */
+typedef struct {
+    double r0; //!< Inner radius of doughnut
+    double r1; //!< Outer radius of doughnut
+    double z0; //!< z-axis position of Disk
+} Disk;
+
+/*! @ingroup conicgroup */
+enum ConicType {
+    PARA,
+    HYPER,
+    ELLIP
+};
+
+
+/*! @ingroup conicgroup
+\brief Structure to contain z-axis symetric conic sections
+
+Contains any geometry that can be expressed as
+@f$ r^2=k_1 + k_2 z + k_3 z^2 @f$
+
+@warning Do not directly modify values in this structure directly */
+typedef struct {
+    double k1; //!< @f$ k_1 @f$ in equation below
+    double k2; //!< @f$ k_2 @f$ in equation below
+    double k3; //!< @f$ k_3 @f$ in equation below
+    double zs; //!< z-axis position of start of mirror
+    double ze; //!< z-axis position of end of mirror
+    double m;  //!< m value for mirror (1.0 for Nickel)
+    int doubleReflections; //!< 0 if reflections from the back of the surface cannot happen 1 otherwise
+    //Only for reference
+    double f1; //!< z-axis position of first focus
+    double f2; //!< z-axis position of second focus, for paraboloid this is unassigned
+    double a;  //!< Value of a, specific to geometry type
+    double c;  //!< Value of c, for paraboloid this is unassigned
+    enum ConicType type; //!< Type of mirror geometry
+
+    #if REC_MAX_GA
+    double max_ga; //!< Max Grazing Angle of Reflected Neutron (Exists only if REC_MAX_GA)
+    double max_ga_z0; //!< Collision point of Max Grazing Neutron (Exists only if REC_MAX_GA)
+    #endif
+
+} ConicSurf;
+
+
+/*! @ingroup flatgroup
+\brief Structure to contain z-axis symetric flat sections
+
+Contains flat geometries which can be expressed as
+@f$ x^2 = k_1 + k_2 z + k_3 z^2 @f$ or
+@f$ y^2 = k_1 + k_2 z + k_3 z^2 @f$
+
+@warning Do not directly modify values in this structure directly */
+typedef struct {
+    double k1; //!< @f$ k_1 @f$ in equation below
+    double k2; //!< @f$ k_2 @f$ in equation below
+    double k3; //!< @f$ k_3 @f$ in equation below
+    double zs; //!< z-axis position of start of mirror
+    double ze; //!< z-axis position of end of mirror
+    double ll; //!< left/lower limit of mirror along translational symmetry
+    double rl; //!< right/upper limit of mirror along translational symmetry
+    double m;  //!< m value for mirror (1.0 for Nickel)
+
+    //Only for reference
+    double f1; //!< z-axis position of first focus
+    double f2; //!< z-axis position of second focus, for paraboloid this is unassigned
+    double a;  //!< Value of a, specific to geometry type
+    double c;  //!< Value of c, for paraboloid this is unassigned
+    //enum FlatType type; //!< Type of mirror geometry
+    int doubleReflections; // will determine whether the geometry allows double reflections
+    #if REC_MAX_GA
+    double max_ga; //!< Max Grazing Angle of Reflected Neutron (Exists only if REC_MAX_GA)
+    double max_ga_z0; //!< Collision point of Max Grazing Neutron (Exists only if REC_MAX_GA)
+    #endif
+
+} FlatSurf;
+/*! @ingroup simgroup
+\brief Structure to hold all scene geometry
+
+The number of possible ConicSurf, Disk and Detector in the Scene are
+determined by MAX_CONICSURF, MAX_DISK and MAX_DETECTOR.
+*/
+typedef struct {
+    FlatSurf f[MAX_FLATSURF]; //!< Array of all ConicSurf in Scene
+    int num_f;                  //!< Number of ConicSurf in Scene
+
+    ConicSurf c[MAX_CONICSURF]; //!< Array of all ConicSurf in Scene
+    int num_c;                  //!< Number of ConicSurf in Scene
+
+    Disk di[MAX_DISK];          //!< Array of all Disk in Scene
+    int num_di;                 //!< Number of Disk in Scene
+
+    Detector d[MAX_DETECTOR];  //!< Array of all Detector in Scene
+    int num_d;                 //!< Number of Detector in Scene
+
+    //! Function called to handle Neutron-Flat Interaction
+    void (*traceNeutronFlat)(Particle*,FlatSurf);
+    //! Function called to handle Neutron-Conic Interaction
+    void (*traceNeutronConic)(Particle*,ConicSurf);
+    //! Function called to handle Neutron-Disk Interaction
+    void (*traceNeutronDisk)(Particle*,Disk);
+    //! Function called to handle Neutron-Detector Interaction
+    void (*traceNeutronDetector)(Particle*,Detector);
+
+} Scene;
+
+/////////////////////////////////////
+// Inline Detector
+/////////////////////////////////////
+
+/** @defgroup detectorgroup Detector
+    Contains code related to the inline detectors
+    @{
+*/
+
+/*! \brief Function to make Detector
+
+@param z0 z-axis position of detector
+@param xmin Smallest x value to detect
+@param xmax Largest x value to detect
+@param ymin Smallest y value to detect
+@param ymax Largest y value to detect
+@param xres Number of pixels along x axis
+@param yres Number of pixels along y axis
+@param num_particles Total number of particles being emitted
+@param filename Name of output file of detector (should end in .txt)
+*/
+Detector makeDetector(double z0,double xmin, double xmax, double ymin, double ymax, int xres,
+    int yres, double num_particles, char* filename) {
+
+    Detector d;
+    d.z0 = z0;
+    d.xmin = xmin;
+    d.xmax = xmax;
+    d.xstep = (xmax-xmin)/xres;
+
+    d.ymin = ymin;
+    d.ymax = ymax;
+    d.ystep = (ymax-ymin)/yres;
+
+    d.ncols = xres;
+    d.nrows = yres;
+    d.filename = filename;
+    d.num_particles = num_particles;
+
+    d.num_count = (double*)malloc(sizeof(double));
+    if (d.num_count == NULL) {
+        fprintf(stderr, "MEMORY ALLOCATION PROBLEM\n");
+        exit(-1);
+    }
+    (*d.num_count) = 0;
+
+    d.data = (double**)malloc(d.ncols*sizeof(double *));
+    if (d.data == NULL) {
+        fprintf(stderr, "MEMORY ALLOCATION PROBLEM\n");
+        exit(-1);
+    }
+    int x;
+    for(x = 0; x  < d.ncols; x++) {
+        d.data[x] = (double*)malloc(d.ncols*sizeof(double));
+        if (d.data[x] == NULL) {
+            fprintf(stderr, "MEMORY ALLOCATION PROBLEM\n");
+            exit(-1);
+        }
+        (*d.data[x]) = 0;
+    }
+
+    return d;
+}
+
+/*! \brief Function to make and add Detector
+
+@param z0 z-axis position of detector
+@param xmin Smallest x value to detect
+@param xmax Largest x value to detect
+@param ymin Smallest y value to detect
+@param ymax Largest y value to detect
+@param xres Number of pixels along x axis
+@param yres Number of pixels along y axis
+@param num_particles Total number of particles being emitted
+@param filename Name of output file of detector (should end in .txt)
+@param s Scene to add Detector to
+*/
+Detector* addDetector(double z0, double xmin, double xmax, double ymin, double ymax, double xres,
+    double yres, double num_particles, char* filename, Scene* s) {
+    if (s->num_d >= MAX_DETECTOR-1) {
+        fprintf(stderr,"TOO MANY DETECTORS IN SCENE");
+        exit(-1);
+    }
+    s->d[s->num_d] = makeDetector(z0,xmin,xmax,ymin,ymax,xres,yres,num_particles,filename);
+    s->num_d++;
+    return &s->d[s->num_d-1];
+}
+
+/*! \brief Function to compute time of first collision for a Detector.
+
+@param p Particle to consider
+@param d Detector to consider
+
+@return Time until the propogation or -1 if particle will not hit detector
+*/
+double getTimeOfFirstCollisionDetector(Particle p, Detector d) {
+    double t = (d.z0-p._z)/p._vz;
+    if (t <= 0)
+        return -1;
+    Particle p2 = copyMoveParticleT(t,p);
+    if (p2._x > d.xmax || p2._x < d.xmin || p2._y > d.ymax || p2._y < d.ymin)
+        return -1;
+    return t;
+}
+
+/*! \brief Function to raytrace Detector
+
+@param p Pointer to particle to be traced
+@param d Detector to be traced
+*/
+void traceNeutronDetector(Particle* p, Detector d) {
+    double t = getTimeOfFirstCollisionDetector(*p, d);
+    if (t < 0)
+        return;
+    moveParticleT(t,p);
+    d.data[(int)floor((p->_x-d.xmin)/d.xstep)][(int)floor((p->_y-d.ymin)/d.ystep)] += p->w;
+    (*d.num_count) += p->w;
+}
+
+/*! \brief Function to finalize detector
+
+Will write data and free data array.
+
+@param d Detector to finalize
+*/
+void finishDetector(Detector d) {
+    int x,y;
+    if (d.filename != "") {
+        FILE *file;
+        file = fopen(d.filename,"w");
+
+        double intensity = (*d.num_count);
+        fprintf(file, "#I=%e I_ERR=%e xmin=%f xmax=%f ymin=%f ymax=%f ncols=%i nrows=%i\n",
+            intensity, sqrt(intensity/d.num_particles), d.xmin, d.xmax, d.ymin, d.ymax, d.ncols, d.nrows); //FIXME: check I_ERR sqrt(I/num_particles)
+
+        //Write data
+        for (x=0; x < d.ncols; x++) {
+            for (y=0; y < d.nrows; y++)
+                fprintf(file, "%e ", d.data[x][y]);
+            fprintf(file, "\n");
+        }
+        fclose(file);
+    }
+    for (x=0; x < d.ncols; x++)
+        free(d.data[x]);
+    free(d.data);
+    free(d.num_count);
+}
+
+/** @} */ //end of detectorgroup
+
+/////////////////////////////////////
+// Geometry Types
+/////////////////////////////////////
+
+/////////////////////////////////////
+// Disks
+/////////////////////////////////////
+
+/** @defgroup diskgroup Disk
+    Contains code related to Disks
+    @{
+*/
+
+/*! \brief Function for creating a Disk structure
+
+@param z0 z-axis position of Disk
+@param r0 Inner radius of doughnut
+@param r1 Outer radius of doughnut
+
+@see Disk
+*/
+Disk makeDisk(double z0, double r0, double r1) {
+    Disk d;
+
+    d.r0 = r0;
+    d.z0 = z0;
+    d.r1 = r1;
+
+    return d;
+}
+
+/*! \brief Function for making and adding Disk to Scene
+
+@param z0 z-axis position of Disk
+@param r0 Inner radius of doughnut
+@param r1 Outer radius of doughnut
+@param s Scene to add Disk to
+
+@see Disk
+*/
+Disk* addDisk(double z0, double r0, double r1, Scene* s) {
+    if (s->num_di >= MAX_DISK-1) {
+        fprintf(stderr,"TOO MANY DISKS IN SCENE");
+        exit(-1);
+    }
+    s->di[s->num_di] = makeDisk(z0, r0, r1);
+    s->num_di++;
+    return &s->di[s->num_di -1];
+}
+
+/*! \brief Function to compute time of first collision for a disk
+
+@param p Particle to consider
+@param d Disk to consider
+@return Time until the propogation or -1 if particle will not hit disk
+*/
+double getTimeOfFirstCollisionDisk(Particle p, Disk d) {
+    double tz = (d.z0-p._z)/p._vz;
+    if (tz <= 0)
+        return -1;
+    Particle p2 = copyMoveParticleT(tz, p);
+    double rp = sqrt(p2._x*p2._x+p2._y*p2._y);
+    if (rp > d.r0 && rp < d.r1 && fabs(p2._z-d.z0) < 1e-11)
+        return (d.z0-p._z)/p._vz;
+    return -1;
+}
+
+/*! \brief Function to raytrace Disks
+
+@param p Pointer to particle to be traced
+@param d Disk to be traced
+*/
+void traceNeutronDisk(Particle* p, Disk d) {
+    double t = getTimeOfFirstCollisionDisk(*p, d);
+
+    if (t <= 0)
+        return;
+
+    moveParticleT(t, p);
+    //absorbParticle(p); //Disk will only be used to propagate neutrons somewhere
+}
+
+/** @} */ //end of diskgroup
+
+/////////////////////////////////////
+// Z-Axis Symetric Conic Sections
+/////////////////////////////////////
+
+/** @defgroup conicgroup ConicSurf
+    Contains code related to ConicSurfs
+    @{
+*/
+
+/*! \brief Function to return radius of ConicSurf at a z-axis position.
+
+Will return radius even if z is outside the bounds of zs and ze
+for the particular ConicSurf.
+
+@param z z-axis position to compute radius
+@param s ConicSurf to compute radius of
+*/
+double rConic(double z, ConicSurf s) {
+    return sqrt(s.k1+s.k2*z+s.k3*z*z);
+}
+
+/*! \brief Function for generating Hyperboloid ConicSurf.
+
+@param f1 z position of focus closest to actual mirror surface
+@param f2 z position of focus furthest from actual mirror surface
+@param p A Point on the actual surface of the mirror
+@param zstart z position of start of mirror surface
+@param zend z position of end of mirror surface
+@param m m value for reflectivity of the surface
+
+@see ConicSurf
+*/
+ConicSurf makeHyperboloid(double f1, double f2, Point p,
+   double zstart, double zend, double m) {
+    ConicSurf s;
+    s.zs = zstart;
+    s.ze = zend;
+
+    double r2 = p.x*p.x+p.y*p.y;
+    double c = (f1-f2)/2;
+
+    double u = p.z+c-f1;
+    double a = sqrt(((u*u+c*c+r2)-sqrt(pow(u*u+c*c+r2,2)-4*c*c*u*u))/2);
+
+    s.k3 = c*c/(a*a)-1;
+    s.k2 = 2*s.k3*(c-f1);
+    s.k1 = (s.k3)*(c-f1)*(c-f1)-c*c+a*a;
+
+    s.m = m;
+    s.f1 = f1;
+    s.f2 = f2;
+    s.a = a;
+    s.c = c;
+
+    s.type = HYPER;
+
+    #if REC_MAX_GA
+    s.max_ga = -1;
+    s.max_ga_z0 = -1;
+    #endif
+
+    return s;
+}
+
+/*! \brief Function for generating Ellipsoid ConicSurf.
+
+@param f1 z position of focus closest to actual mirror surface
+@param f2 z position of focus furthest from actual mirror surface
+@param p A Point on the actual surface of the mirror
+@param zstart z position of start of mirror surface
+@param zend z position of end of mirror surface
+@param m m value for reflectivity of the surface
+
+@see ConicSurf
+*/
+ConicSurf makeEllipsoid(double f1, double f2, Point p,
+    double zstart, double zend, double m, int doubleReflections) {
+    ConicSurf s;
+    s.zs = zstart;
+    s.ze = zend;
+    s.doubleReflections = doubleReflections;
+    double r2 = p.x*p.x+p.y*p.y;
+    double c = (f1-f2)/2;
+
+    double u = p.z+c-f1;
+    double a = sqrt(((u*u+c*c+r2)+sqrt(pow(u*u+c*c+r2,2)-4*c*c*u*u))/2);
+
+    s.k3 = c*c/(a*a)-1;
+    s.k2 = 2*s.k3*(c-f1);
+    s.k1 = (s.k3)*(c-f1)*(c-f1)-c*c+a*a;
+
+    s.m = m;
+    s.f1 = f1;
+    s.f2 = f2;
+    s.a = a;
+    s.c = c;
+
+    s.type = ELLIP;
+
+    #if REC_MAX_GA
+    s.max_ga = -1;
+    s.max_ga_z0 = -1;
+    #endif
+
+    return s;
+}
+
+
+/*! \brief Function for generating Flat Ellipse with symmetry along the vertical y.
+
+@param f1 z position of focus closest to actual mirror surface
+@param f2 z position of focus furthest from actual mirror surface
+@param b the short half axis of the ellipse, positive for translational symmetry along y, negative for translational symmetry along x
+@param p A Point on the actual surface of the mirror
+@param zstart z position of start of mirror surface
+@param zend z position of end of mirror surface
+@param ll the left/lower limit of the ellipse surface (in either y or x for b > 0 or b < 0
+@param rl the right/upper limit of the ellipse surface (in either y or x for b > 0 or b < 0
+@param m m value for reflectivity of the surface
+
+
+@see ConicSurf
+*/
+FlatSurf makeFlatEllipse(
+    double f1,
+    double f2,
+    Point p,
+    double zstart,
+    double zend,
+    double ll,
+    double rl,
+    double m,
+    int doubleReflections) {
+        FlatSurf s;
+        s.zs = zstart;
+        s.ze = zend;
+        s.doubleReflections = doubleReflections;
+        s.ll = ll;
+        s.rl = rl;
+        double r2 = p.x*p.x + p.y*p.y;
+        double c = (f1-f2)/2;
+        double u = p.z+c-f1;
+        double a = sqrt(((u*u+c*c+r2)+sqrt(pow(u*u+c*c+r2,2)-4*c*c*u*u))/2);
+
+        s.k3 = c*c/(a*a)-1;
+        s.k2 = 2*s.k3*(c-f1);
+        s.k1 = (s.k3)*(c-f1)*(c-f1)-c*c+a*a;
+
+        s.m = m;
+        s.f1 = f1;
+        s.f2 = f2;
+        s.a = a;
+        s.c = c;
+
+        //s.type = ELLIP;
+
+        #if REC_MAX_GA
+        s.max_ga = -1;
+        s.max_ga_z0 = -1;
+        #endif
+
+        return s;
+}
+
+/*! \brief Function for generating Paraboloid ConicSurf.
+
+@param f z position of focus closest to actual mirror surface
+@param p A Point on the actual surface of the mirror
+@param zstart z position of start of mirror surface
+@param zend z position of end of mirror surface
+@param m m value for reflectivity of the surface
+
+@see ConicSurf
+*/
+ConicSurf makeParaboloid(double f, Point p, double zstart,
+    double zend, double m, int doubleReflections) {
+
+    ConicSurf s;
+    s.zs = zstart;
+    s.ze = zend;
+    s.doubleReflections = doubleReflections;
+    double r2 = p.x*p.x+p.y*p.y;
+    double a = (-(p.z-f)+sign(p.z-f)*sqrt((p.z-f)*(p.z-f)+r2))/2;
+
+    s.k3 = 0.0;
+    s.k2 = 4*a;
+    s.k1 = s.k2*(a-f);
+
+    s.m = m;
+    s.f1 = f;
+    s.a = a;
+
+    s.type = PARA;
+
+    #if REC_MAX_GA
+    s.max_ga = -1;
+    s.max_ga_z0 = -1;
+    #endif
+
+    return s;
+}
+
+/*! \brief Function for generating Flat Parabola for FlatSurf.
+
+@param f z position of focus closest to actual mirror surface
+@param p A Point on the actual surface of the mirror, putting one of x or y to 0 results in the surface being parallel to said coordinate
+@param zstart z position of start of mirror surface
+@param zend z position of end of mirror surface
+@param ll the left/lower limit of the ellipse surface (in either y or x for b > 0 or b < 0
+@param rl the right/upper limit of the ellipse surface (in either y or x for b > 0 or b < 0
+@param m m value for reflectivity of the surface
+@param doubleReflections wether double reflections are allowed
+
+@see FlatSurf
+*/
+FlatSurf makeFlatparbola(
+    double f,
+    Point p,
+    double zstart,
+    double zend,
+    double ll,
+    double rl,
+    double m,
+    int doubleReflections) {
+
+    FlatSurf s;
+    s.zs = zstart;
+    s.ze = zend;
+    s.doubleReflections = doubleReflections;
+    double r2 = p.x*p.x+p.y*p.y;
+    double a = (-(p.z-f)+sign(p.z-f)*sqrt((p.z-f)*(p.z-f)+r2))/2;
+
+    s.k3 = 0.0;
+    s.k2 = 4*a;
+    s.k1 = s.k2*(a-f);
+
+    s.m = m;
+    s.f1 = f;
+    s.a = a;
+    s.ll = ll;
+    s.rl = rl;
+    //s.type = PARA;
+
+    #if REC_MAX_GA
+    s.max_ga = -1;
+    s.max_ga_z0 = -1;
+    #endif
+
+    return s;
+}
+
+/*! \brief Function for generating and adding Paraboloid ConicSurf.
+
+@param f1 z position of focus closest to actual mirror surface
+@param p A Point on the actual surface of the mirror
+@param zstart z position of start of mirror surface
+@param zend z position of end of mirror surface
+@param m m value for reflectivity of the surface
+@param s Scene to add Paraboloid to
+
+@see ConicSurf
+*/
+ConicSurf* addParaboloid(double f1, Point p, double zstart, double zend,
+    double m, int doubleReflections, Scene* s) {
+    if (s->num_c >= MAX_CONICSURF-1) {
+        fprintf(stderr,"TOO MANY CONICSURF IN SCENE");
+        exit(-1);
+    }
+    s->c[s->num_c] = makeParaboloid(f1,p,zstart,zend,m, doubleReflections);
+    s->num_c++;
+    return &s->c[s->num_c-1];
+}
+
+/*! \brief Function for generating and adding a flat Parabolic FlatSurf.
+
+@param f1 z position of focus closest to actual mirror surface
+@param p A Point on the actual surface of the mirror
+@param zstart z position of start of mirror surface
+@param zend z position of end of mirror surface
+@param ll the lower bound of the mirror
+@param rl the upper bound of the mirror
+@param m m value for reflectivity of the surface
+@param s Scene to add Ellipsoid to
+@param doubleReflections wether double reflections can occur
+@see FlatSurf
+*/
+FlatSurf* addFlatParabola(
+    double f,
+    Point p,
+    double zstart,
+    double zend,
+    double ll,
+    double rl,
+    double m,
+    Scene* s,
+    int doubleReflections) {
+    if (s->num_f >= MAX_FLATSURF-1) {
+        fprintf(stderr,"TOO MANY FLATSURF IN SCENE");
+        exit(-1);
+    }
+    s->f[s->num_f] = makeFlatparbola(f,p,zstart,zend,ll,rl,m,doubleReflections);
+    s->num_f++;
+    return &s->f[s->num_f-1];
+}
+
+/*! \brief Function for generating and adding Hyperboloid ConicSurf.
+
+@param f1 z position of focus closest to actual mirror surface
+@param f2 z position of focus furthest from actual mirror surface
+@param p A Point on the actual surface of the mirror
+@param zstart z position of start of mirror surface
+@param zend z position of end of mirror surface
+@param m m value for reflectivity of the surface
+@param s Scene to add Hyperboloid to
+
+@see ConicSurf
+*/
+ConicSurf* addHyperboloid(double f1, double f2, Point p, double zstart,
+    double zend, double m, Scene* s) {
+    if (s->num_c >= MAX_CONICSURF-1) {
+        fprintf(stderr,"TOO MANY CONICSURF IN SCENE");
+        exit(-1);
+    }
+    s->c[s->num_c] = makeHyperboloid(f1,f2,p,zstart,zend,m);
+    s->num_c++;
+    return &s->c[s->num_c-1];
+}
+
+/*! \brief Function for generating and adding Ellipsoid ConicSurf.
+
+@param f1 z position of focus closest to actual mirror surface
+@param f2 z position of focus furthest from actual mirror surface
+@param p A Point on the actual surface of the mirror
+@param zstart z position of start of mirror surface
+@param zend z position of end of mirror surface
+@param m m value for reflectivity of the surface
+@param s Scene to add Ellipsoid to
+
+@see ConicSurf
+*/
+ConicSurf* addEllipsoid(double f1, double f2, Point p, double zstart,
+    double zend, double m, int doubleReflections, Scene* s) {
+    if (s->num_c >= MAX_CONICSURF-1) {
+        fprintf(stderr,"TOO MANY CONICSURF IN SCENE");
+        exit(-1);
+    }
+    s->c[s->num_c] = makeEllipsoid(f1,f2,p,zstart,zend,m,doubleReflections);
+    s->num_c++;
+    return &s->c[s->num_c-1];
+}
+
+/*! \brief Function for generating and adding a flat Ellipse FlatSurf.
+
+@param f1 z position of focus closest to actual mirror surface
+@param f2 z position of focus furthest from actual mirror surface
+@param p A Point on the actual surface of the mirror
+@param zstart z position of start of mirror surface
+@param zend z position of end of mirror surface
+@param m m value for reflectivity of the surface
+@param s Scene to add Ellipsoid to
+
+@see ConicSurf
+*/
+FlatSurf* addFlatEllipse(
+    double f1,
+    double f2,
+    Point p,
+    double zstart,
+    double zend,
+    double ll,
+    double rl,
+    double m,
+    int doubleReflections,
+    Scene* s) {
+    if (s->num_f >= MAX_FLATSURF-1) {
+        fprintf(stderr,"TOO MANY FLATSURF IN SCENE");
+        exit(-1);
+    }
+    s->f[s->num_f] = makeFlatEllipse(f1,f2,p,zstart,zend,ll,rl,m,doubleReflections);
+    s->num_f++;
+    return &s->f[s->num_f-1];
+}
+//!TODO
+double getGrazeAngleConic(Particle p, ConicSurf s) {
+    /*
+    double v = sqrt(dotVec(getParticleVel(p),getParticleVel(p)));
+    double vn = dotVec(getParticleVel(p),n);
+    return fabs(acos(vn/v)) - M_PI/2;
+    */
+}
+
+/*! \brief Function for returning normal vector of ConicSurf at Point p
+
+Will compute vector even if p is not on surface.
+MAKE SURE p IS ON SURFACE
+
+@param p Point to compute normal vector
+@param s ConicSurf to compute normal vector of
+*/
+Vec getNormConic(Point p, ConicSurf s) {
+    double det = s.k2*s.k2+4*s.k3*(p.x*p.x+p.y*p.y-s.k1);
+    if (det <= 0.){
+
+        return makeVec(-p.x/sqrt(p.x*p.x + p.y*p.y),-p.y/(p.x*p.x + p.y*p.y),0);
+    }
+    double den = sqrt(det);
+    double nx = -2*p.x/den;
+    double ny = -2*p.y/den;
+    double nz = sign(2*s.k3*p.z+s.k2);
+    double n = sqrt(nx*nx+ny*ny+nz*nz);
+    //printf("%f,%f,%f \n", nx/n,ny/n,nz/n);
+    return makeVec(nx/n,ny/n,nz/n);
+}
+
+/*! \brief Function for returning normal vector of FlatSurf at Point p
+
+Will compute vector even if p is not on surface.
+MAKE SURE p IS ON SURFACE
+
+@param p Point to compute normal vector
+@param s FlatSurf to compute normal vector of; for s.b > 0 surface posseses translation symmetry along y direction
+*/
+Vec getNormFlat(Point p, FlatSurf s) {
+    double r;
+    //if(s.b > 0){
+    r = p.x;
+    //else{
+    //    r = p.y;
+    //};
+    double den;
+    double det = s.k2*s.k2+4*s.k3*(r*r-s.k1);
+    if (det > 0){
+        den = sqrt(det);
+    }
+    else{
+    return makeVec(-1,0,0); // if the neutron hits the apex of the ellipse we run into a divide by zero problem
+    }
+    double nx = -2*p.x/den;
+    double ny = 0;
+    double nz = sign(2*s.k3*p.z+s.k2);
+    double n = sqrt(nx*nx+ny*ny+nz*nz);
+    return makeVec(nx/n,ny/n,nz/n);
+}
+
+/*! \brief Function to compute time of first collision for a ConicSurf
+
+@param p Particle to consider
+@param s ConicSurf to consider
+@return Time until the propogation or -1 if particle will not hit surface
+*/
+double getTimeOfFirstCollisionConic(Particle p, ConicSurf s) {
+    double tz = (s.zs-p._z)/p._vz;
+    if (tz < 0) {
+       tz = 0;
+       if (p._z > s.ze)
+            return -1;
+    }
+
+    Particle p2 = copyMoveParticleT(tz,p);
+
+    double A = p2._vx*p2._vx+p2._vy*p2._vy-s.k3*p2._vz*p2._vz;
+    double B = 2*(p2._vx*p2._x+p2._vy*p2._y-s.k3*p2._vz*p2._z)-s.k2*p2._vz;
+    double C = p2._x*p2._x+p2._y*p2._y-s.k3*p2._z*p2._z-s.k2*p2._z-s.k1;
+
+    double t = solveQuad(A,B,C);
+
+    if (t <= 0 || p2._vz*t+p2._z > s.ze || p2._vz*t+p2._z < s.zs)
+        return -1;
+    return t+tz;
+}
+
+/*! \brief Function to compute time of first collision for a FlatSurf
+
+@param p Particle to consider
+@param s FlatSurf to consider
+@return Time until the propogation or -1 if particle will not hit surface
+*/
+//TODO
+double getTimeOfFirstCollisionFlat(Particle p, FlatSurf s) {
+    double tz = (s.zs-p._z)/p._vz;
+    if (tz < 0) {
+       tz = 0;
+       if (p._z > s.ze)
+            return -1;
+    }
+
+    Particle p2 = copyMoveParticleT(tz,p);
+    double vs = 0;//the vector important for calculating the intersection with the ellipse
+    double s0 = 0;
+    double vt = 0;//the other component only important for testing whether the mirror is hit
+    double t0 = 0;
+    //if(s.b > 0){
+    vs = p2._vx;
+    s0 = p2._x;
+    vt = p2._vy;
+    t0 = p2._y;
+
+    //}
+    /*else{
+    vs = p2._vy;
+    s0 = p2._y;
+    vt = p2._vx;
+    t0 = p2._x;
+    };
+    */
+    double A = vs*vs-s.k3*p2._vz*p2._vz;
+    double B = 2*(vs*s0-s.k3*p2._vz*p2._z)-s.k2*p2._vz;
+    double C = s0*s0-s.k3*p2._z*p2._z-s.k2*p2._z-s.k1;
+
+    double t = solveQuad(A,B,C);
+
+    if (t <= 0 || p2._vz*t+p2._z > s.ze || p2._vz*t+p2._z < s.zs||vt*t+t0 < s.ll||vt*t +t0 > s.rl)
+        return -1;
+    return t+tz;
+}
+
+/*! \brief Function to handle supermirror reflectivity copied from mcstas.
+@note Uses only m-value for calculating reflectivity curve TODO more sophisticated formulae in the future
+
+@param q k_i - k_f momentum transfer of the neutron at the super mirror surface
+@param m supermirror m-value
+@param R_0 low angle reflectivity
+@param Q_c critical momentum transfer of the super mirror
+
+@return p weight reduction of the neutron for further simulation
+*/
+double calcSupermirrorReflectivity(double q, double m, double R_0, double Q_c){
+    double arg;
+    double beta = 0;
+    double alpha = 2.5;
+    double W = 0.004;
+    double weight = 1.0; //neutron weight to be transformed
+    q = fabs(q);
+    if (m >= 10){
+        weight = 1.0;
+        return weight;
+    }
+    if (W==0 && alpha==0) {
+      m=m*0.9853+0.1978;
+      W=-0.0002*m+0.0022;
+      alpha=0.2304*m+5.0944;
+      beta=-7.6251*m+68.1137;
+      if (m<=3) {
+	    alpha=m;
+	    beta=0;
+        }
+    }
+    arg = W > 0 ? (q - m*Q_c)/W : 11;
+    if (arg > 10 || m <= 0 || Q_c <=0 || R_0 <= 0) {
+      weight = 0.0;
+      return weight;
+    }
+
+    if (m < 1) { Q_c *= m; m=1; }
+
+    if(q <= Q_c) {
+      weight = R_0;
+      return weight;
+    }
+
+
+    weight = R_0*0.5*(1 - tanh(arg))*(1 - alpha*(q - Q_c) + beta*(q - Q_c)*(q - Q_c));
+    return weight;
+}
+
+/*! \brief Function to handle reflection of neutron for a ConicSurf.
+
+@note Uses step function for reflectivity
+
+@warning Make sure particle has been moved to surface of mirror
+before computing reflection
+
+@param p Pointer of particle to reflect
+@param s ConicSurf to use
+
+@return Value of critical angle of the neutron or -1 if neutron is absorbed
+
+@see traceNeutronConic()
+*/
+double reflectNeutronConic(Particle* p, ConicSurf s) {//TODO add super mirror reflectivity an passing neutrons
+    Vec n = getNormConic(getParticlePos(*p),s);
+    Vec pv = getParticleVel(*p);
+    double weight = 0;
+    
+
+    double v = getMagVec(pv);
+    double vn = dotVec(pv,n);
+    
+    weight = calcSupermirrorReflectivity(V2Q_conic*vn*2, s.m, 1.0, 0.0218);
+
+    //Hitting shell from outside
+
+    if (vn > 0 && !s.doubleReflections) {
+        absorbParticle(p);
+        return -1;
+    }
+
+
+
+    double ga = fabs(acos(vn/v)) - M_PI/2;
+    double gc = 6.84459399932*s.m/v;
+
+    if (weight <= 0) {
+        printf("weight <0");
+        absorbParticle(p);
+        return -1;
+    }
+    else {
+        p->_vx = p->_vx-2*vn*n.x;
+        p->_vy = p->_vy-2*vn*n.y;
+        p->_vz = p->_vz-2*vn*n.z;
+        p->w *= weight;
+    }
+    return ga;
+}
+
+/*! \brief Function to handle refraction of neutron.
+
+@warning Make sure particle has been moved to surface of mirror
+before computing reflection
+
+@param p Pointer of particle to reflect
+@param n Normal vector
+@param m1 m-value of the original material we come from
+@param m2 m-value of the goal material we go to
+
+@return Value of critical angle of the neutron or -1 if neutron is absorbed
+
+@see traceNeutronConic()
+*/
+void refractNeutronFlat(Particle* p, Vec n, double m1, double m2) {
+    //Vec n = getNormFlat(getParticlePos(*p),s);
+    Vec pv = getParticleVel(*p);
+    //printf("incoming %.14g %.14g %.14g\n", pv.x, pv.y, pv.z);
+    //printf("normal %.14g %.14g %.14g\n", n.x, n.y, n.z);
+    double v = getMagVec(pv);
+    double vn = dotVec(pv, n);
+    //printf("vn %.9g", vn);
+    Vec v_p = difVec(pv, skalarVec(n, vn));
+
+    double k2_perp = POT_V*(m1*m1-m2*m2)+vn*vn;
+    //printf("the magnitude %f\n", k2_perp);
+    if (k2_perp>0){//refraction
+        
+        k2_perp = sqrt(k2_perp)*sign(vn);
+        p->_vx = v_p.x + n.x*k2_perp;
+        p->_vy = v_p.y + n.y*k2_perp;
+        p->_vz = v_p.z + n.z*k2_perp;
+        p-> silicon *= -1;// from silicon to air or vice versa
+        //printf("resulting vector %f %f %f\n", p->_vx, p->_vy, p->_vz);
+    }else{//total reflection, no change in material
+        p->_vx = p->_vx-2*vn*n.x;
+        p->_vy = p->_vy-2*vn*n.y;
+        p->_vz = p->_vz-2*vn*n.z;
+        //no change in material
+    }
+
+    
+}
+
+/*! \brief Function to handle reflection of neutron for a FlatSurf.
+
+@note Uses step function for reflectivity
+
+@warning Make sure particle has been moved to surface of mirror
+before computing reflection
+
+@param p Pointer of particle to reflect
+@param s FlatSurf to use
+
+@return Value of critical angle of the neutron or -1 if neutron is absorbed
+
+@see traceNeutronConic()
+*/
+double reflectNeutronFlat(Particle* p, FlatSurf s) {
+    Vec n = getNormFlat(getParticlePos(*p),s);
+    Vec pv = getParticleVel(*p);
+    //printf("nothing");
+    double v = getMagVec(pv);
+    double vn = dotVec(pv,n);
+    //printf("before %f \n", p->w);
+    //Hitting shell from outside For FlatSurface this has to be checked
+    // make it able to reflect from the outside
+    double ga = fabs(acos(vn/v)) - M_PI/2;
+    double gc = 6.84459399932*s.m/v;
+
+
+    double weight = 0;
+    weight = calcSupermirrorReflectivity(V2Q_conic*2*vn, s.m, 0.995, 0.0218);
+
+    if (vn > 0 && !s.doubleReflections) {
+        absorbParticle(p);
+        return -1;
+    }
+
+
+    if (weight < 0) {
+        printf("this happens?");
+        absorbParticle(p);
+        return -1;
+    } else {//here we need to implement the refraction
+        if (getRandom() <= weight){//to be updated to use the mcstas random function or quasoi deterministic model
+            //printf("oh a reflections\n");
+            //printf("this total reflection?");
+            p->_vx = p->_vx-2*vn*n.x;
+            p->_vy = p->_vy-2*vn*n.y;
+            p->_vz = p->_vz-2*vn*n.z;
+            return ga;
+        }
+        else{//
+            //printf("enter the refraction process");
+            double m1 = 0;
+            double m2 = 0;
+            //if no mirrorwidth is specified no refraction has to be calc
+            if (p->silicon == 0){
+                return ga;
+            }
+            if (p->silicon == 1){
+                m1 = m_Si;
+                m2 = 0;
+            }
+            if (p->silicon == -1){
+                m1 = 0;
+                m2 = m_Si;                
+            }
+            //printf("k1 %f k2 %f k3 %f x %f y %f z %f\n", s.k1, s.k2, s.k3, p->_x, p->_y, p->_z);
+            refractNeutronFlat(p, n, m1, m2);// this can still lead to total reflection, we miss the supermirror, but are still reflected by the silicon takes care of change of material for refraction
+            return ga;
+        }
+    }
+    return ga;
+}
+
+
+/*! \brief Function to handle raytracing of neutron for a ConicSurf.
+
+@param p Pointer of particle to reflect
+@param c ConicSurf to use
+
+*/
+void traceNeutronConic(Particle* p, ConicSurf c) {
+    double t = getTimeOfFirstCollisionConic(*p, c);
+    if (t < 0)
+        return;
+    else {
+        moveParticleT(t, p);
+        double ga = reflectNeutronConic(p, c);
+#if REC_MAX_GA
+        if (ga > c.max_ga) {
+            c.max_ga = ga;
+            c.max_ga_z0 = p->_z;
+        }
+#endif
+    }
+}
+
+/*! \brief Function to handle raytracing of neutron for a FlatSurf.
+
+@param p Pointer of particle to reflect
+@param f FlatSurf to use
+
+*/
+void traceNeutronFlat(Particle* p, FlatSurf f) {
+    double t = getTimeOfFirstCollisionFlat(*p, f);
+    if (t < 0)
+        return;
+    else {
+
+        moveParticleT(t, p);
+
+        //printf("weight before reflect %f", p->w);
+        double ga = reflectNeutronFlat(p, f);
+        //printf("weight after reflect %f\n", p->w);
+#if REC_MAX_GA
+        if (ga > f.max_ga) {
+            f.max_ga = ga;
+            f.max_ga_z0 = p->_z;
+        }
+#endif
+    }
+}
+/** @} */ //end of conicgroup
+/////////////////////////////////////
+// Scene Functions
+/////////////////////////////////////
+/** @ingroup simgroup
+    @{
+*/
+enum GEO {
+    NONE,
+    DETECTOR,
+    DISK,
+    CONIC,
+    FLAT
+};
+
+//! Function to generate an empty Scene
+Scene makeScene() {
+    Scene s;
+    s.num_f = 0;
+    s.num_c = 0;
+    s.num_di = 0;
+    s.num_d = 0;
+
+    s.traceNeutronFlat = traceNeutronFlat;
+    s.traceNeutronConic = traceNeutronConic;
+    s.traceNeutronDisk = traceNeutronDisk;
+    s.traceNeutronDetector = traceNeutronDetector;
+
+    return s;
+}
+
+//! Function to init simulation items
+/*! Should be called after all items
+have been added to scene but before
+neutrons are traced.
+
+@param s Pointer of Scene to init
+*/
+void initSimulation(Scene* s) {
+    //
+}
+
+/*! \brief Function to raytrace single neutron through geometries specified by d, di and c.
+
+@param p Pointer of particle to trace
+@param s Scene to trace
+*/
+void traceSingleNeutron(Particle* p, Scene s) {
+
+    int contact = 1;
+    do {
+        double t;
+        enum  GEO type = NONE;
+        int index = -1;
+        int i;
+
+        for (i = 0; i < s.num_c; i++) {
+            double t2 = getTimeOfFirstCollisionConic(*p,s.c[i]);
+
+            if (t2 <= 0)
+                continue;
+            if (index == -1 || t2 < t) {
+                type = CONIC;
+                index = i;
+                t = t2;
+            }
+        }
+
+        for (i = 0; i < s.num_f; i++) {
+            double t2 = getTimeOfFirstCollisionFlat(*p,s.f[i]);
+
+            if (t2 <= 0)
+                continue;
+            if (index == -1 || t2 < t) {
+                type = FLAT;
+                index = i;
+                t = t2;
+            }
+        }
+
+        for (i = 0; i < s.num_di; i++)  {
+            double t2 = getTimeOfFirstCollisionDisk(*p,s.di[i]);
+
+            if (t2 <= 0)
+                continue;
+            else if (index == -1 || t2 < t) {
+                type = DISK;
+                index = i;
+                t = t2;
+            }
+        }
+
+        for (i = 0; i < s.num_d; i++) {
+            double t2 = getTimeOfFirstCollisionDetector(*p,s.d[i]);
+
+            if (t2 <= 0)
+                continue;
+            else if (index == -1 || t2 < t) {
+                type = DETECTOR;
+                index = i;
+                t = t2;
+            }
+        }
+
+        switch (type) {
+            case DETECTOR:
+                s.traceNeutronDetector(p, s.d[index]);
+                break;
+            case FLAT:
+                s.traceNeutronFlat(p, s.f[index]);
+                break;
+            case DISK:
+                s.traceNeutronDisk(p, s.di[index]);
+                break;
+            case CONIC:
+                s.traceNeutronConic(p, s.c[index]);
+                break;
+            default:
+                contact = 0;
+                break;
+        }
+    } while (contact && !p->absorb);
+
+}
+
+//!Finishes tracing the scene
+/*! This function should be called after all of the
+particles have been raytraced.
+
+@param s Pointer of Scene to finish tracing
+*/
+void finishSimulation(Scene* s) {
+    int i;
+
+    //Finish Detectors
+    for (i=0; i < s->num_d; i++)
+        finishDetector(s->d[i]);
+}
+
+/** @} */ //end of ingroup simgroup
+
+#endif
+
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+double * get_r_at_z0(int number, double z_0, double r_0, double z_extract, double LStart, double LEnd, double lStart, double lEnd) {
+    /*
+    number: how many mirrors,
+    z_0: z-position of the initial point on mirror
+    r_0: r-distance of the initial point on mirror
+    z_extract: z-position of which the distances are to be extracted
+    LStart: Position of the first focal point
+    LEnd: Postion of the second focal point
+    lStart: Beginning of the mirror
+    lEnd: End of the mirror
+    */
+    int n = number;
+    double *r_zExtracts = malloc(n*sizeof(double_t)); /* n is an array of 10 integers */
+	r_zExtracts[0] = r_0;
+    //helper variables as in conic_finite_mirror.h and explained in swissneutronics_überlegungen
+    double k1;
+    double k2;
+    double k3;
+    double c;
+    double u;
+    double a;
+    double r_lEnd;
+    double r_lStart;
+    //initial mirror is calculated from the initial point z0, r0
+    c = (LEnd - LStart)/2;
+    u = (z_0 + c - LEnd);
+    a = sqrt((u*u+c*c+r_0*r_0+sqrt(pow(u*u+c*c+r_0*r_0, 2)-4*c*c*u*u))/2);
+    k3 = c*c/(a*a)-1;
+    k2 = 2*k3*(c-LEnd);
+    k1 = k3*(c-LEnd)*(c-LEnd)-c*c+a*a;
+    printf("k1 %f k2 %f k3 %f\n", k1, k2, k3);
+	//next mirror will be calculated with the point on the surface being lStart, r_lStart
+	for( int k = 0; k < number;++k){
+        r_zExtracts[k] = sqrt(k1 + k2*z_extract + k3*z_extract*z_extract); 
+        r_lEnd = sqrt(k1+ k2*lEnd + k3*lEnd*lEnd);//calculate the radius at the end
+        r_lStart = r_lEnd*(lStart-LStart)/(lEnd-LStart);//
+
+        c = (LEnd - LStart)/2;
+        u = (lStart + c - LEnd);
+        a = sqrt((u*u+c*c+r_lStart*r_lStart+sqrt(pow(u*u+c*c+r_lStart*r_lStart, 2)-4*c*c*u*u))/2);
+        k3 = c*c/(a*a)-1;
+        k2 = 2*k3*(c-LEnd);
+        k1 = k3*(c-LEnd)*(c-LEnd)-c*c+a*a;
+        printf("k1 %f k2 %f k3 %f\n", k1, k2, k3);
+        //r_lEnd = sqrt(k1+ k2*lEnd + k3*lEnd*lEnd);
+        //r_lStart = r_lEnd*(lStart-LStart)/(lEnd-LStart);
+	};
+   return r_zExtracts;
+}
+
+
+
+
+    //%include "w1_general.h"
+    //%include "read_table-lib"
+#line 7269 "./reverse_test.c"
+
 /* Shared user declarations for all components 'LogSpiral'. */
-#line 52 "LogSpiral.comp"
+#line 54 "LogSpiral.comp"
 /*****************************************************************************
 *
 * McStas, neutron ray-tracing package
@@ -6321,8 +8237,8 @@ double Table_Value(t_Table Table, double X, long j)
       } /* end for Index */
   }
 
-  Y1 = Table_Index(Table,Index-1,j);
-  Y2 = Table_Index(Table,Index  ,j);
+  Y1 = Table_Index(Table,Index, j);
+  Y2 = Table_Index(Table,Index+1, j);
 
   if (!strcmp(Table.method,"linear")) {
     ret = Table_Interp1d(X, X1,Y1, X2,Y2);
@@ -6957,6 +8873,8 @@ typedef struct LogSpir{
     double k;//=arctan(psi_rad);
     double precision;
     double theta_end;
+	double phi_rot;//the angle between the individual arms of the spiral defaults to theta_end
+	double mValue;
     double x_end;
 	double mindistance;
 	int branches;
@@ -6970,6 +8888,10 @@ typedef struct part_log{
 	double vy;
 	double vx;
 } part_log;//Structure for a 2D part_log
+
+double getRandomLog() {
+    return (double)lrand48()/RAND_MAX;
+}
 
 typedef struct BranchTime{
 	double phi_rot;//rotation angle of the branch
@@ -7000,6 +8922,46 @@ double returnx(part_log n){
 double returnvx(part_log n){
 	return n.vx;
 }
+#define V2Q_conic 1.58825361e-3
+#define Q2V_conic 629.622368
+
+double calcSupermirrorReflectivityLog(double q, double m, double R_0, double Q_c){
+    double arg;
+    double beta = 0;
+    double alpha = 2.5;
+    double W = 0.004;
+    double weight = 1.0; //neutron weight to be transformed
+    q = fabs(q);
+    if (m >= 10){
+        return weight;
+    }
+    if (W==0 && alpha==0) {
+      m=m*0.9853+0.1978;
+      W=-0.0002*m+0.0022;
+      alpha=0.2304*m+5.0944;
+      beta=-7.6251*m+68.1137;
+      if (m<=3) {
+	    alpha=m;
+	    beta=0;
+        }
+    }
+    arg = W > 0 ? (q - m*Q_c)/W : 11;
+    if (arg > 10 || m <= 0 || Q_c <=0 || R_0 <= 0) {
+      weight = 0.0;
+      return weight;
+    }
+
+    if (m < 1) { Q_c *= m; m=1; }
+
+    if(q <= Q_c) {
+      weight = R_0;
+      return weight;
+    }
+
+
+    weight = R_0*0.5*(1 - tanh(arg))*(1 - alpha*(q - Q_c) + beta*(q - Q_c)*(q - Q_c));
+    return weight;
+}
 
 void rotate_vector(part_log *neutron, part_log initneut, double theta_rot){
 	double sint = sin(theta_rot);
@@ -7022,14 +8984,24 @@ part_log Neutron2Dinit(part_log *neutron, double z, double y, double x, double v
 	return *neutron;
 }
 
-void reflected_direction(part_log normal, part_log *neutron){
+void reflect_neutron(part_log normal, part_log *neutron, double mValue){
+	//first check if the reflection takes place 
+
 	double vz = neutron->vz;
 	double vx = neutron->vx;
 	double vdotn = vz*normal.vz + vx*normal.vx;
-	vx = vx-2*vdotn*normal.vx;
-	vz = vz-2*vdotn*normal.vz;
-	neutron->vz = vz;
-	neutron->vx = vx;
+	double weight = calcSupermirrorReflectivityLog(V2Q_conic*2*vdotn, mValue, 0.995, 0.0218);
+	//printf("weight %f\n", weight);
+	if (getRandomLog() <= weight){
+		vx = vx-2*vdotn*normal.vx;
+		vz = vz-2*vdotn*normal.vz;
+		neutron->vz = vz;
+		neutron->vx = vx;
+	}
+	else{
+		;
+	}
+	
 }
 
 
@@ -7075,15 +9047,17 @@ double return_precise_theta_end(LogSpir logspir, int max_iterations){
 	return -10.0;
 }
 
-void LogSpirinit(LogSpir *logspir, double zstart, double zend, double psi, double precision, double max_iterations, int branches){
+void LogSpirinit(LogSpir *logspir, double zstart, double zend, double psi, double phi_rot, double mValue, double precision, double max_iterations, int branches){
 	logspir->zstart = zstart;
 	logspir->zend = zend;
 	logspir->psi = psi;
 	logspir->psi_rad = psi*DEG2RAD;
+	logspir->mValue = mValue;
 	logspir->k = 1/tan(logspir->psi_rad);
 	logspir->precision = precision;
 	logspir->branches = branches;
 	logspir->theta_end = return_precise_theta_end(*logspir, max_iterations);
+	logspir->phi_rot = phi_rot > 0 ? phi_rot : logspir->theta_end; //the rotation of the spirals is by default theta _end
 	logspir->mindistance = 2*sin(logspir->theta_end/2)*zstart;
 }
 
@@ -7149,7 +9123,7 @@ BranchTime return_first_interaction(LogSpir logspir, float z0, float x0, float v
 	init_neut = Neutron2Dinit(&init_neut, z0, 0, x0, vz, 0, vx);//don't need y for this so we just put it to zero
 	part_log rotneut;
 	for (int kk=0; kk<logspir.branches; kk++){//instead of rotating the device we rotate neutron to calculate the intersection time--> lowest wins
-		theta_rot = -kk*logspir.theta_end;
+		theta_rot = -kk*logspir.phi_rot;
 		//rotate the rotneut
 		rotate_vector(&rotneut, init_neut, theta_rot);
 		theta_int = return_precise_theta_int(logspir, rotneut, 10);
@@ -7182,9 +9156,7 @@ part_log return_normal_vec(LogSpir logspir, double theta){//returns the normaliz
 	return n2d;
 }
 
-void reflect_neutron(part_log *incoming, part_log normal){
 
-}
 
 void propagate_neutron(part_log *incoming, double dt){
 	incoming->x += incoming->vx*dt;
@@ -7212,7 +9184,7 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 		propagate_neutron(neutron, t_prop);//propagate neutron
 		n = return_normal_vec(logspir, theta_int);
 		rotate_vector(&n_rot, n, -phi_rot);//
-		reflected_direction(n_rot, neutron);
+		reflect_neutron(n_rot, neutron, logspir.mValue);
 		return 1;
 	}
 }
@@ -7231,89 +9203,7 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 //part_log n;
 
 
-#line 7234 "./test.c"
-
-/* Shared user declarations for all components 'PSD_monitor'. */
-#line 57 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
-
-#ifndef ARRAYS_H
-#define ARRAYS_H
-typedef double* DArray1d;
-DArray1d create_darr1d(int n);
-void destroy_darr1d(DArray1d a);
-
-typedef double** DArray2d;
-DArray2d create_darr2d(int nx, int ny);
-void destroy_darr2d(DArray2d a);
-
-typedef double*** DArray3d;
-DArray3d create_darr3d(int nx, int ny, int nz);
-void destroy_darr3d(DArray3d a);
-#endif
-#ifndef ARRAYS_C
-#define ARRAYS_C
-#include <stdlib.h>
-
-DArray1d create_darr1d(int n){
-  DArray1d arr2d;
-  arr2d = calloc(n, sizeof(double));
-  return arr2d;
-}
-void destroy_darr1d(DArray1d a){
-  free(a);
-}
-
-DArray2d create_darr2d(int nx, int ny){
-  DArray2d arr2d;
-  arr2d = calloc(nx, sizeof(double *));
-
-  double *p1;
-  p1 = calloc(nx*ny, sizeof(double));
-
-  int i;
-  for (i=0; i<nx; i++){
-    arr2d[i] = &(p1[i*ny]);
-  }
-  return arr2d;
-}
-void destroy_darr2d(DArray2d a){
-  free(a[0]);
-  free(a);
-}
-
-DArray3d create_darr3d(int nx, int ny, int nz){
-  DArray3d arr3d;
-  int i, j;
-
-  // 1d
-  arr3d = calloc(nx, sizeof(double **));
-
-  // d2
-  double **p1;
-  p1 = calloc(nx*ny, sizeof(double *));
-
-  for (i=0; i<nx; i++){
-    arr3d[i] = &(p1[i*ny]);
-  }
-
-  // 3d
-  double *p2;
-  p2 = calloc(nx*ny*nz, sizeof(double));
-  for (i=0; i<nx; i++){
-    for (j=0; j<ny; j++){
-      arr3d[i][j] = &(p2[(i*ny+j)*nz]);
-    }
-  }
-  return arr3d;
-}
-void destroy_darr3d(DArray3d a){
-  free(a[0][0]);
-  free(a[0]);
-  free(a);
-}
-#endif
-
-#line 7316 "./test.c"
+#line 9206 "./reverse_test.c"
 
 /* Instrument parameters. */
 MCNUM mcipsource_width;
@@ -7328,7 +9218,7 @@ MCNUM mcipplaceholder;
 int mcnumipar = 7;
 struct mcinputtable_struct mcinputtable[mcNUMIPAR+1] = {
   "source_width", &mcipsource_width, instr_type_double, "0.001", 
-  "source_divergence", &mcipsource_divergence, instr_type_double, "75", 
+  "source_divergence", &mcipsource_divergence, instr_type_double, "3.7116398665896515", 
   "L_source", &mcipL_source, instr_type_double, "5", 
   "dL", &mcipdL, instr_type_double, "2", 
   "branches", &mcipbranches, instr_type_double, "5", 
@@ -7363,17 +9253,17 @@ struct mcinputtable_struct mcinputtable[mcNUMIPAR+1] = {
 
 /* neutron state table at each component input (local coords) */
 /* [x, y, z, vx, vy, vz, t, sx, sy, sz, p] */
-MCNUM mccomp_storein[11*7];
+MCNUM mccomp_storein[11*10];
 /* Components position table (absolute and relative coords) */
-Coords mccomp_posa[7];
-Coords mccomp_posr[7];
+Coords mccomp_posa[10];
+Coords mccomp_posr[10];
 /* Counter for each comp to check for inactive ones */
-MCNUM  mcNCounter[7];
-MCNUM  mcPCounter[7];
-MCNUM  mcP2Counter[7];
-#define mcNUMCOMP 6 /* number of components */
+MCNUM  mcNCounter[10];
+MCNUM  mcPCounter[10];
+MCNUM  mcP2Counter[10];
+#define mcNUMCOMP 9 /* number of components */
 /* Counter for PROP ABSORB */
-MCNUM  mcAbsorbProp[7];
+MCNUM  mcAbsorbProp[10];
 /* Flag true when previous component acted on the neutron (SCATTER) */
 MCNUM mcScattered=0;
 /* Flag true when neutron should be restored (RESTORE) */
@@ -7398,16 +9288,55 @@ MCNUM mccsource_div_dlambda;
 MCNUM mccsource_div_gauss;
 MCNUM mccsource_div_flux;
 
-/* Setting parameters for component 'logspir' [4]. */
+/* Setting parameters for component 'slit' [4]. */
+MCNUM mccslit_xmin;
+MCNUM mccslit_xmax;
+MCNUM mccslit_ymin;
+MCNUM mccslit_ymax;
+MCNUM mccslit_radius;
+MCNUM mccslit_xwidth;
+MCNUM mccslit_yheight;
+
+/* Setting parameters for component 'psd_before_optic' [5]. */
+int mccpsd_before_optic_nx;
+int mccpsd_before_optic_ny;
+char mccpsd_before_optic_filename[16384];
+MCNUM mccpsd_before_optic_xmin;
+MCNUM mccpsd_before_optic_xmax;
+MCNUM mccpsd_before_optic_ymin;
+MCNUM mccpsd_before_optic_ymax;
+MCNUM mccpsd_before_optic_xwidth;
+MCNUM mccpsd_before_optic_yheight;
+MCNUM mccpsd_before_optic_restore_neutron;
+
+/* Definition parameters for component 'flat_ellipse_horizontal' [6]. */
+#define mccflat_ellipse_horizontal_reflect "supermirror_m3.rfl" /* declared as a string. May produce warnings at compile */
+/* Setting parameters for component 'flat_ellipse_horizontal' [6]. */
+MCNUM mccflat_ellipse_horizontal_sourceDist;
+MCNUM mccflat_ellipse_horizontal_LStart;
+MCNUM mccflat_ellipse_horizontal_LEnd;
+MCNUM mccflat_ellipse_horizontal_lStart;
+MCNUM mccflat_ellipse_horizontal_lEnd;
+MCNUM mccflat_ellipse_horizontal_r_0;
+MCNUM mccflat_ellipse_horizontal_nummirror;
+MCNUM mccflat_ellipse_horizontal_mf;
+MCNUM mccflat_ellipse_horizontal_mb;
+MCNUM mccflat_ellipse_horizontal_mirror_width;
+MCNUM mccflat_ellipse_horizontal_mirror_sidelength;
+MCNUM mccflat_ellipse_horizontal_doubleReflections;
+
+/* Setting parameters for component 'logspir' [7]. */
 MCNUM mcclogspir_zstart;
 MCNUM mcclogspir_zend;
 MCNUM mcclogspir_psi;
+MCNUM mcclogspir_phi_rot;
 MCNUM mcclogspir_precision;
 MCNUM mcclogspir_max_iterations;
+MCNUM mcclogspir_mValue;
 MCNUM mcclogspir_branches;
 MCNUM mcclogspir_placeholder;
 
-/* Setting parameters for component 'psd_monitor' [5]. */
+/* Setting parameters for component 'psd_monitor' [8]. */
 int mccpsd_monitor_nx;
 int mccpsd_monitor_ny;
 char mccpsd_monitor_filename[16384];
@@ -7433,7 +9362,7 @@ MCNUM mccpsd_monitor_restore_neutron;
 #define percent mccorigin_percent
 #define flag_save mccorigin_flag_save
 #define minutes mccorigin_minutes
-#line 44 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 44 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 #ifndef PROGRESS_BAR
 #define PROGRESS_BAR
 #else
@@ -7444,7 +9373,7 @@ double IntermediateCnts;
 time_t StartTime;
 time_t EndTime;
 time_t CurrentTime;
-#line 7447 "./test.c"
+#line 9376 "./reverse_test.c"
 #undef minutes
 #undef flag_save
 #undef percent
@@ -7489,9 +9418,9 @@ time_t CurrentTime;
 #define dlambda mccsource_div_dlambda
 #define gauss mccsource_div_gauss
 #define flux mccsource_div_flux
-#line 69 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 69 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, focus_yh;
-#line 7494 "./test.c"
+#line 9423 "./reverse_test.c"
 #undef flux
 #undef gauss
 #undef dlambda
@@ -7516,28 +9445,159 @@ double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, foc
 #undef mccompcurtype
 #undef mccompcurindex
 
-/* User declarations for component 'logspir' [4]. */
+/* User declarations for component 'slit' [4]. */
+#define mccompcurname  slit
+#define mccompcurtype  Slit
+#define mccompcurindex 4
+#define xmin mccslit_xmin
+#define xmax mccslit_xmax
+#define ymin mccslit_ymin
+#define ymax mccslit_ymax
+#define radius mccslit_radius
+#define xwidth mccslit_xwidth
+#define yheight mccslit_yheight
+#undef yheight
+#undef xwidth
+#undef radius
+#undef ymax
+#undef ymin
+#undef xmax
+#undef xmin
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+/* User declarations for component 'psd_before_optic' [5]. */
+#define mccompcurname  psd_before_optic
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 5
+#define PSD_N mccpsd_before_optic_PSD_N
+#define PSD_p mccpsd_before_optic_PSD_p
+#define PSD_p2 mccpsd_before_optic_PSD_p2
+#define nx mccpsd_before_optic_nx
+#define ny mccpsd_before_optic_ny
+#define filename mccpsd_before_optic_filename
+#define xmin mccpsd_before_optic_xmin
+#define xmax mccpsd_before_optic_xmax
+#define ymin mccpsd_before_optic_ymin
+#define ymax mccpsd_before_optic_ymax
+#define xwidth mccpsd_before_optic_xwidth
+#define yheight mccpsd_before_optic_yheight
+#define restore_neutron mccpsd_before_optic_restore_neutron
+#line 62 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+  DArray2d PSD_N;
+  DArray2d PSD_p;
+  DArray2d PSD_p2;
+#line 9491 "./reverse_test.c"
+#undef restore_neutron
+#undef yheight
+#undef xwidth
+#undef ymax
+#undef ymin
+#undef xmax
+#undef xmin
+#undef filename
+#undef ny
+#undef nx
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+/* User declarations for component 'flat_ellipse_horizontal' [6]. */
+#define mccompcurname  flat_ellipse_horizontal
+#define mccompcurtype  FlatEllipse_finite_mirror
+#define mccompcurindex 6
+#define reflect mccflat_ellipse_horizontal_reflect
+#define s mccflat_ellipse_horizontal_s
+#define pTable mccflat_ellipse_horizontal_pTable
+#define R0 mccflat_ellipse_horizontal_R0
+#define Qc mccflat_ellipse_horizontal_Qc
+#define W mccflat_ellipse_horizontal_W
+#define alpha mccflat_ellipse_horizontal_alpha
+#define transmit mccflat_ellipse_horizontal_transmit
+#define sourceDist mccflat_ellipse_horizontal_sourceDist
+#define LStart mccflat_ellipse_horizontal_LStart
+#define LEnd mccflat_ellipse_horizontal_LEnd
+#define lStart mccflat_ellipse_horizontal_lStart
+#define lEnd mccflat_ellipse_horizontal_lEnd
+#define r_0 mccflat_ellipse_horizontal_r_0
+#define nummirror mccflat_ellipse_horizontal_nummirror
+#define mf mccflat_ellipse_horizontal_mf
+#define mb mccflat_ellipse_horizontal_mb
+#define mirror_width mccflat_ellipse_horizontal_mirror_width
+#define mirror_sidelength mccflat_ellipse_horizontal_mirror_sidelength
+#define doubleReflections mccflat_ellipse_horizontal_doubleReflections
+#line 62 "FlatEllipse_finite_mirror.comp"
+    //Scene where all geometry is added to
+    Scene s;
+    //Variables for Reflectivity from McStas Tables
+    //t_Table pTable;
+    //double R0 = 0.99;
+    //double Qc = 0.021;
+    //double W = 0.003;
+    //double alpha = 6.07;
+    //double transmit = 0;
+    double *pointer_lStart;// lStart has to be used in Trace later, this requires a pointer
+    //Function to handle Conic-Neutron collisions with reflectivity from McStas Tables
+    void traceNeutronConicWithTables(Particle* p, ConicSurf c);
+    double *rfront_inner;
+    
+    double dt;
+    int silicon; // +1: neutron in silicon, -1: neutron in air, 0: mirrorwidth is 0; neutron cannot be in silicon
+#line 9550 "./reverse_test.c"
+#undef doubleReflections
+#undef mirror_sidelength
+#undef mirror_width
+#undef mb
+#undef mf
+#undef nummirror
+#undef r_0
+#undef lEnd
+#undef lStart
+#undef LEnd
+#undef LStart
+#undef sourceDist
+#undef transmit
+#undef alpha
+#undef W
+#undef Qc
+#undef R0
+#undef pTable
+#undef s
+#undef reflect
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+/* User declarations for component 'logspir' [7]. */
 #define mccompcurname  logspir
 #define mccompcurtype  LogSpiral
-#define mccompcurindex 4
+#define mccompcurindex 7
 #define zstart mcclogspir_zstart
 #define zend mcclogspir_zend
 #define psi mcclogspir_psi
+#define phi_rot mcclogspir_phi_rot
 #define precision mcclogspir_precision
 #define max_iterations mcclogspir_max_iterations
+#define mValue mcclogspir_mValue
 #define branches mcclogspir_branches
 #define placeholder mcclogspir_placeholder
-#line 345 "LogSpiral.comp"
+#line 403 "LogSpiral.comp"
 	double dt;
 	double theta_int;
 	LogSpir logspir;
 	LogSpir *logspirp;
 	part_log normal;
-#line 7536 "./test.c"
+#line 9594 "./reverse_test.c"
 #undef placeholder
 #undef branches
+#undef mValue
 #undef max_iterations
 #undef precision
+#undef phi_rot
 #undef psi
 #undef zend
 #undef zstart
@@ -7545,10 +9605,10 @@ double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, foc
 #undef mccompcurtype
 #undef mccompcurindex
 
-/* User declarations for component 'psd_monitor' [5]. */
+/* User declarations for component 'psd_monitor' [8]. */
 #define mccompcurname  psd_monitor
 #define mccompcurtype  PSD_monitor
-#define mccompcurindex 5
+#define mccompcurindex 8
 #define PSD_N mccpsd_monitor_PSD_N
 #define PSD_p mccpsd_monitor_PSD_p
 #define PSD_p2 mccpsd_monitor_PSD_p2
@@ -7562,11 +9622,11 @@ double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, foc
 #define xwidth mccpsd_monitor_xwidth
 #define yheight mccpsd_monitor_yheight
 #define restore_neutron mccpsd_monitor_restore_neutron
-#line 62 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 62 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
   DArray2d PSD_N;
   DArray2d PSD_p;
   DArray2d PSD_p2;
-#line 7569 "./test.c"
+#line 9629 "./reverse_test.c"
 #undef restore_neutron
 #undef yheight
 #undef xwidth
@@ -7590,6 +9650,12 @@ Coords mcposasource, mcposrsource;
 Rotation mcrotasource, mcrotrsource;
 Coords mcposasource_div, mcposrsource_div;
 Rotation mcrotasource_div, mcrotrsource_div;
+Coords mcposaslit, mcposrslit;
+Rotation mcrotaslit, mcrotrslit;
+Coords mcposapsd_before_optic, mcposrpsd_before_optic;
+Rotation mcrotapsd_before_optic, mcrotrpsd_before_optic;
+Coords mcposaflat_ellipse_horizontal, mcposrflat_ellipse_horizontal;
+Rotation mcrotaflat_ellipse_horizontal, mcrotrflat_ellipse_horizontal;
 Coords mcposalogspir, mcposrlogspir;
 Rotation mcrotalogspir, mcrotrlogspir;
 Coords mcposapsd_monitor, mcposrpsd_monitor;
@@ -7635,31 +9701,31 @@ void mcinit(void) {
     /* Component origin. */
   /* Setting parameters for component origin. */
   SIG_MESSAGE("origin (Init:SetPar)");
-#line 39 "test.instr"
+#line 39 "reverse_test.instr"
   if("NULL") strncpy(mccorigin_profile, "NULL" ? "NULL" : "", 16384); else mccorigin_profile[0]='\0';
-#line 39 "test.instr"
+#line 39 "reverse_test.instr"
   mccorigin_percent = 10;
-#line 39 "test.instr"
+#line 39 "reverse_test.instr"
   mccorigin_flag_save = 0;
-#line 39 "test.instr"
+#line 39 "reverse_test.instr"
   mccorigin_minutes = 0;
-#line 7646 "./test.c"
+#line 9712 "./reverse_test.c"
 
   SIG_MESSAGE("origin (Init:Place/Rotate)");
   rot_set_rotation(mcrotaorigin,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7653 "./test.c"
+#line 9719 "./reverse_test.c"
   rot_copy(mcrotrorigin, mcrotaorigin);
   mcposaorigin = coords_set(
-#line 48 "test.instr"
+#line 47 "reverse_test.instr"
     0,
-#line 48 "test.instr"
+#line 47 "reverse_test.instr"
     0,
-#line 48 "test.instr"
+#line 47 "reverse_test.instr"
     0);
-#line 7662 "./test.c"
+#line 9728 "./reverse_test.c"
   mctc1 = coords_neg(mcposaorigin);
   mcposrorigin = rot_apply(mcrotaorigin, mctc1);
   mcDEBUG_COMPONENT("origin", mcposaorigin, mcrotaorigin)
@@ -7676,18 +9742,18 @@ void mcinit(void) {
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7679 "./test.c"
+#line 9745 "./reverse_test.c"
   rot_mul(mctr1, mcrotaorigin, mcrotasource);
   rot_transpose(mcrotaorigin, mctr1);
   rot_mul(mcrotasource, mctr1, mcrotrsource);
   mctc1 = coords_set(
-#line 52 "test.instr"
+#line 51 "reverse_test.instr"
     0,
-#line 52 "test.instr"
+#line 51 "reverse_test.instr"
     0,
-#line 52 "test.instr"
+#line 51 "reverse_test.instr"
     0);
-#line 7690 "./test.c"
+#line 9756 "./reverse_test.c"
   rot_transpose(mcrotaorigin, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource = coords_add(mcposaorigin, mctc2);
@@ -7701,48 +9767,48 @@ void mcinit(void) {
     /* Component source_div. */
   /* Setting parameters for component source_div. */
   SIG_MESSAGE("source_div (Init:SetPar)");
-#line 56 "test.instr"
+#line 55 "reverse_test.instr"
   mccsource_div_xwidth = mcipsource_width;
-#line 55 "test.instr"
-  mccsource_div_yheight = 6;
-#line 57 "test.instr"
+#line 54 "reverse_test.instr"
+  mccsource_div_yheight = 0.05;
+#line 56 "reverse_test.instr"
   mccsource_div_focus_aw = mcipsource_divergence;
-#line 58 "test.instr"
+#line 57 "reverse_test.instr"
   mccsource_div_focus_ah = 0.000001;
-#line 64 "test.instr"
+#line 64 "reverse_test.instr"
   mccsource_div_E0 = 0.0;
-#line 64 "test.instr"
+#line 64 "reverse_test.instr"
   mccsource_div_dE = 0.0;
-#line 59 "test.instr"
+#line 58 "reverse_test.instr"
   mccsource_div_lambda0 = mcipL_source;
-#line 61 "test.instr"
+#line 60 "reverse_test.instr"
   mccsource_div_dlambda = mcipdL;
-#line 64 "test.instr"
+#line 64 "reverse_test.instr"
   mccsource_div_gauss = 0;
-#line 60 "test.instr"
-  mccsource_div_flux = mcipflux;
-#line 7724 "./test.c"
+#line 59 "reverse_test.instr"
+  mccsource_div_flux = 1e11;
+#line 9790 "./reverse_test.c"
 
   SIG_MESSAGE("source_div (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
-#line 63 "test.instr"
+#line 62 "reverse_test.instr"
     (0)*DEG2RAD,
-#line 63 "test.instr"
+#line 62 "reverse_test.instr"
     (0)*DEG2RAD,
-#line 63 "test.instr"
+#line 62 "reverse_test.instr"
     (0)*DEG2RAD);
-#line 7734 "./test.c"
+#line 9800 "./reverse_test.c"
   rot_mul(mctr1, mcrotasource, mcrotasource_div);
   rot_transpose(mcrotasource, mctr1);
   rot_mul(mcrotasource_div, mctr1, mcrotrsource_div);
   mctc1 = coords_set(
-#line 62 "test.instr"
+#line 61 "reverse_test.instr"
     0,
-#line 62 "test.instr"
+#line 61 "reverse_test.instr"
     0,
-#line 62 "test.instr"
+#line 61 "reverse_test.instr"
     0);
-#line 7745 "./test.c"
+#line 9811 "./reverse_test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource_div = coords_add(mcposasource, mctc2);
@@ -7753,110 +9819,271 @@ void mcinit(void) {
   mccomp_posr[3] = mcposrsource_div;
   mcNCounter[3]  = mcPCounter[3] = mcP2Counter[3] = 0;
   mcAbsorbProp[3]= 0;
+    /* Component slit. */
+  /* Setting parameters for component slit. */
+  SIG_MESSAGE("slit (Init:SetPar)");
+#line 65 "reverse_test.instr"
+  mccslit_xmin = 0;
+#line 66 "reverse_test.instr"
+  mccslit_xmax = 0.0198;
+#line 67 "reverse_test.instr"
+  mccslit_ymin = -1;
+#line 68 "reverse_test.instr"
+  mccslit_ymax = 1;
+#line 46 "reverse_test.instr"
+  mccslit_radius = 0;
+#line 46 "reverse_test.instr"
+  mccslit_xwidth = 0;
+#line 46 "reverse_test.instr"
+  mccslit_yheight = 0;
+#line 9839 "./reverse_test.c"
+
+  SIG_MESSAGE("slit (Init:Place/Rotate)");
+  rot_set_rotation(mctr1,
+    (0.0)*DEG2RAD,
+    (0.0)*DEG2RAD,
+    (0.0)*DEG2RAD);
+#line 9846 "./reverse_test.c"
+  rot_mul(mctr1, mcrotasource, mcrotaslit);
+  rot_transpose(mcrotasource_div, mctr1);
+  rot_mul(mcrotaslit, mctr1, mcrotrslit);
+  mctc1 = coords_set(
+#line 71 "reverse_test.instr"
+    0,
+#line 71 "reverse_test.instr"
+    0,
+#line 71 "reverse_test.instr"
+    0.675 -0.060001);
+#line 9857 "./reverse_test.c"
+  rot_transpose(mcrotasource, mctr1);
+  mctc2 = rot_apply(mctr1, mctc1);
+  mcposaslit = coords_add(mcposasource, mctc2);
+  mctc1 = coords_sub(mcposasource_div, mcposaslit);
+  mcposrslit = rot_apply(mcrotaslit, mctc1);
+  mcDEBUG_COMPONENT("slit", mcposaslit, mcrotaslit)
+  mccomp_posa[4] = mcposaslit;
+  mccomp_posr[4] = mcposrslit;
+  mcNCounter[4]  = mcPCounter[4] = mcP2Counter[4] = 0;
+  mcAbsorbProp[4]= 0;
+    /* Component psd_before_optic. */
+  /* Setting parameters for component psd_before_optic. */
+  SIG_MESSAGE("psd_before_optic (Init:SetPar)");
+#line 74 "reverse_test.instr"
+  mccpsd_before_optic_nx = 500;
+#line 75 "reverse_test.instr"
+  mccpsd_before_optic_ny = 500;
+#line 76 "reverse_test.instr"
+  if("beforeoptic.dat") strncpy(mccpsd_before_optic_filename, "beforeoptic.dat" ? "beforeoptic.dat" : "", 16384); else mccpsd_before_optic_filename[0]='\0';
+#line 50 "reverse_test.instr"
+  mccpsd_before_optic_xmin = -0.05;
+#line 50 "reverse_test.instr"
+  mccpsd_before_optic_xmax = 0.05;
+#line 50 "reverse_test.instr"
+  mccpsd_before_optic_ymin = -0.05;
+#line 50 "reverse_test.instr"
+  mccpsd_before_optic_ymax = 0.05;
+#line 77 "reverse_test.instr"
+  mccpsd_before_optic_xwidth = 1;
+#line 78 "reverse_test.instr"
+  mccpsd_before_optic_yheight = 1;
+#line 79 "reverse_test.instr"
+  mccpsd_before_optic_restore_neutron = 1;
+#line 9891 "./reverse_test.c"
+
+  SIG_MESSAGE("psd_before_optic (Init:Place/Rotate)");
+  rot_set_rotation(mctr1,
+    (0.0)*DEG2RAD,
+    (0.0)*DEG2RAD,
+    (0.0)*DEG2RAD);
+#line 9898 "./reverse_test.c"
+  rot_mul(mctr1, mcrotasource, mcrotapsd_before_optic);
+  rot_transpose(mcrotaslit, mctr1);
+  rot_mul(mcrotapsd_before_optic, mctr1, mcrotrpsd_before_optic);
+  mctc1 = coords_set(
+#line 80 "reverse_test.instr"
+    0,
+#line 80 "reverse_test.instr"
+    0,
+#line 80 "reverse_test.instr"
+    0.675 -0.06);
+#line 9909 "./reverse_test.c"
+  rot_transpose(mcrotasource, mctr1);
+  mctc2 = rot_apply(mctr1, mctc1);
+  mcposapsd_before_optic = coords_add(mcposasource, mctc2);
+  mctc1 = coords_sub(mcposaslit, mcposapsd_before_optic);
+  mcposrpsd_before_optic = rot_apply(mcrotapsd_before_optic, mctc1);
+  mcDEBUG_COMPONENT("psd_before_optic", mcposapsd_before_optic, mcrotapsd_before_optic)
+  mccomp_posa[5] = mcposapsd_before_optic;
+  mccomp_posr[5] = mcposrpsd_before_optic;
+  mcNCounter[5]  = mcPCounter[5] = mcP2Counter[5] = 0;
+  mcAbsorbProp[5]= 0;
+    /* Component flat_ellipse_horizontal. */
+  /* Setting parameters for component flat_ellipse_horizontal. */
+  SIG_MESSAGE("flat_ellipse_horizontal (Init:SetPar)");
+#line 83 "reverse_test.instr"
+  mccflat_ellipse_horizontal_sourceDist = - ( 0.675 );
+#line 84 "reverse_test.instr"
+  mccflat_ellipse_horizontal_LStart = - ( 0.675 );
+#line 85 "reverse_test.instr"
+  mccflat_ellipse_horizontal_LEnd = 0.675;
+#line 86 "reverse_test.instr"
+  mccflat_ellipse_horizontal_lStart = -0.06;
+#line 87 "reverse_test.instr"
+  mccflat_ellipse_horizontal_lEnd = 0.06;
+#line 88 "reverse_test.instr"
+  mccflat_ellipse_horizontal_r_0 = 0.02;
+#line 91 "reverse_test.instr"
+  mccflat_ellipse_horizontal_nummirror = 30;
+#line 93 "reverse_test.instr"
+  mccflat_ellipse_horizontal_mf = 4;
+#line 94 "reverse_test.instr"
+  mccflat_ellipse_horizontal_mb = 0;
+#line 89 "reverse_test.instr"
+  mccflat_ellipse_horizontal_mirror_width = 0;
+#line 90 "reverse_test.instr"
+  mccflat_ellipse_horizontal_mirror_sidelength = 10;
+#line 92 "reverse_test.instr"
+  mccflat_ellipse_horizontal_doubleReflections = 1;
+#line 9947 "./reverse_test.c"
+
+  SIG_MESSAGE("flat_ellipse_horizontal (Init:Place/Rotate)");
+  rot_set_rotation(mctr1,
+#line 97 "reverse_test.instr"
+    (0)*DEG2RAD,
+#line 97 "reverse_test.instr"
+    (0)*DEG2RAD,
+#line 97 "reverse_test.instr"
+    (0)*DEG2RAD);
+#line 9957 "./reverse_test.c"
+  rot_mul(mctr1, mcrotasource, mcrotaflat_ellipse_horizontal);
+  rot_transpose(mcrotapsd_before_optic, mctr1);
+  rot_mul(mcrotaflat_ellipse_horizontal, mctr1, mcrotrflat_ellipse_horizontal);
+  mctc1 = coords_set(
+#line 96 "reverse_test.instr"
+    0,
+#line 96 "reverse_test.instr"
+    0,
+#line 96 "reverse_test.instr"
+    0.675);
+#line 9968 "./reverse_test.c"
+  rot_transpose(mcrotasource, mctr1);
+  mctc2 = rot_apply(mctr1, mctc1);
+  mcposaflat_ellipse_horizontal = coords_add(mcposasource, mctc2);
+  mctc1 = coords_sub(mcposapsd_before_optic, mcposaflat_ellipse_horizontal);
+  mcposrflat_ellipse_horizontal = rot_apply(mcrotaflat_ellipse_horizontal, mctc1);
+  mcDEBUG_COMPONENT("flat_ellipse_horizontal", mcposaflat_ellipse_horizontal, mcrotaflat_ellipse_horizontal)
+  mccomp_posa[6] = mcposaflat_ellipse_horizontal;
+  mccomp_posr[6] = mcposrflat_ellipse_horizontal;
+  mcNCounter[6]  = mcPCounter[6] = mcP2Counter[6] = 0;
+  mcAbsorbProp[6]= 0;
     /* Component logspir. */
   /* Setting parameters for component logspir. */
   SIG_MESSAGE("logspir (Init:SetPar)");
-#line 73 "test.instr"
-  mcclogspir_zstart = 1;
-#line 73 "test.instr"
-  mcclogspir_zend = 3;
-#line 73 "test.instr"
-  mcclogspir_psi = 5;
-#line 41 "test.instr"
+#line 100 "reverse_test.instr"
+  mcclogspir_zstart = 0.15;
+#line 100 "reverse_test.instr"
+  mcclogspir_zend = 0.3;
+#line 100 "reverse_test.instr"
+  mcclogspir_psi = 1.55;
+#line 100 "reverse_test.instr"
+  mcclogspir_phi_rot = 0;
+#line 42 "reverse_test.instr"
   mcclogspir_precision = 1e-8;
-#line 42 "test.instr"
+#line 43 "reverse_test.instr"
   mcclogspir_max_iterations = 10;
-#line 73 "test.instr"
+#line 100 "reverse_test.instr"
+  mcclogspir_mValue = 8;
+#line 100 "reverse_test.instr"
   mcclogspir_branches = mcipbranches;
-#line 44 "test.instr"
+#line 46 "reverse_test.instr"
   mcclogspir_placeholder = 0;
-#line 7773 "./test.c"
+#line 10000 "./reverse_test.c"
 
   SIG_MESSAGE("logspir (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
-#line 75 "test.instr"
+#line 102 "reverse_test.instr"
     (0)*DEG2RAD,
-#line 75 "test.instr"
-    (0)*DEG2RAD,
-#line 75 "test.instr"
-    (0)*DEG2RAD);
-#line 7783 "./test.c"
+#line 102 "reverse_test.instr"
+    (180)*DEG2RAD,
+#line 102 "reverse_test.instr"
+    (180)*DEG2RAD);
+#line 10010 "./reverse_test.c"
   rot_mul(mctr1, mcrotasource, mcrotalogspir);
-  rot_transpose(mcrotasource_div, mctr1);
+  rot_transpose(mcrotaflat_ellipse_horizontal, mctr1);
   rot_mul(mcrotalogspir, mctr1, mcrotrlogspir);
   mctc1 = coords_set(
-#line 74 "test.instr"
+#line 101 "reverse_test.instr"
     0,
-#line 74 "test.instr"
+#line 101 "reverse_test.instr"
     0,
-#line 74 "test.instr"
-    0);
-#line 7794 "./test.c"
+#line 101 "reverse_test.instr"
+    0.675 * 2);
+#line 10021 "./reverse_test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposalogspir = coords_add(mcposasource, mctc2);
-  mctc1 = coords_sub(mcposasource_div, mcposalogspir);
+  mctc1 = coords_sub(mcposaflat_ellipse_horizontal, mcposalogspir);
   mcposrlogspir = rot_apply(mcrotalogspir, mctc1);
   mcDEBUG_COMPONENT("logspir", mcposalogspir, mcrotalogspir)
-  mccomp_posa[4] = mcposalogspir;
-  mccomp_posr[4] = mcposrlogspir;
-  mcNCounter[4]  = mcPCounter[4] = mcP2Counter[4] = 0;
-  mcAbsorbProp[4]= 0;
+  mccomp_posa[7] = mcposalogspir;
+  mccomp_posr[7] = mcposrlogspir;
+  mcNCounter[7]  = mcPCounter[7] = mcP2Counter[7] = 0;
+  mcAbsorbProp[7]= 0;
     /* Component psd_monitor. */
   /* Setting parameters for component psd_monitor. */
   SIG_MESSAGE("psd_monitor (Init:SetPar)");
-#line 81 "test.instr"
+#line 108 "reverse_test.instr"
   mccpsd_monitor_nx = 500;
-#line 82 "test.instr"
+#line 109 "reverse_test.instr"
   mccpsd_monitor_ny = 500;
-#line 83 "test.instr"
+#line 110 "reverse_test.instr"
   if("psdafterlog.dat") strncpy(mccpsd_monitor_filename, "psdafterlog.dat" ? "psdafterlog.dat" : "", 16384); else mccpsd_monitor_filename[0]='\0';
-#line 50 "test.instr"
+#line 50 "reverse_test.instr"
   mccpsd_monitor_xmin = -0.05;
-#line 50 "test.instr"
+#line 50 "reverse_test.instr"
   mccpsd_monitor_xmax = 0.05;
-#line 50 "test.instr"
+#line 50 "reverse_test.instr"
   mccpsd_monitor_ymin = -0.05;
-#line 50 "test.instr"
+#line 50 "reverse_test.instr"
   mccpsd_monitor_ymax = 0.05;
-#line 84 "test.instr"
-  mccpsd_monitor_xwidth = 10;
-#line 85 "test.instr"
-  mccpsd_monitor_yheight = 10;
-#line 86 "test.instr"
+#line 111 "reverse_test.instr"
+  mccpsd_monitor_xwidth = 0.1;
+#line 112 "reverse_test.instr"
+  mccpsd_monitor_yheight = 0.1;
+#line 113 "reverse_test.instr"
   mccpsd_monitor_restore_neutron = 1;
-#line 7828 "./test.c"
+#line 10055 "./reverse_test.c"
 
   SIG_MESSAGE("psd_monitor (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
-#line 88 "test.instr"
+#line 115 "reverse_test.instr"
     (0)*DEG2RAD,
-#line 88 "test.instr"
+#line 115 "reverse_test.instr"
     (0)*DEG2RAD,
-#line 88 "test.instr"
+#line 115 "reverse_test.instr"
     (0)*DEG2RAD);
-#line 7838 "./test.c"
+#line 10065 "./reverse_test.c"
   rot_mul(mctr1, mcrotasource, mcrotapsd_monitor);
   rot_transpose(mcrotalogspir, mctr1);
   rot_mul(mcrotapsd_monitor, mctr1, mcrotrpsd_monitor);
   mctc1 = coords_set(
-#line 87 "test.instr"
+#line 114 "reverse_test.instr"
     0,
-#line 87 "test.instr"
+#line 114 "reverse_test.instr"
     0,
-#line 87 "test.instr"
-    6);
-#line 7849 "./test.c"
+#line 114 "reverse_test.instr"
+    2 * 0.675);
+#line 10076 "./reverse_test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposapsd_monitor = coords_add(mcposasource, mctc2);
   mctc1 = coords_sub(mcposalogspir, mcposapsd_monitor);
   mcposrpsd_monitor = rot_apply(mcrotapsd_monitor, mctc1);
   mcDEBUG_COMPONENT("psd_monitor", mcposapsd_monitor, mcrotapsd_monitor)
-  mccomp_posa[5] = mcposapsd_monitor;
-  mccomp_posr[5] = mcposrpsd_monitor;
-  mcNCounter[5]  = mcPCounter[5] = mcP2Counter[5] = 0;
-  mcAbsorbProp[5]= 0;
+  mccomp_posa[8] = mcposapsd_monitor;
+  mccomp_posr[8] = mcposrpsd_monitor;
+  mcNCounter[8]  = mcPCounter[8] = mcP2Counter[8] = 0;
+  mcAbsorbProp[8]= 0;
   /* Component initializations. */
   /* Initializations for component origin. */
   SIG_MESSAGE("origin (Init)");
@@ -7871,7 +10098,7 @@ void mcinit(void) {
 #define percent mccorigin_percent
 #define flag_save mccorigin_flag_save
 #define minutes mccorigin_minutes
-#line 57 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 57 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
 IntermediateCnts=0;
 StartTime=0;
@@ -7883,7 +10110,7 @@ fprintf(stdout, "[%s] Initialize\n", mcinstrument_name);
     percent=1e5*100.0/mcget_ncount();
   }
 }
-#line 7886 "./test.c"
+#line 10113 "./reverse_test.c"
 #undef minutes
 #undef flag_save
 #undef percent
@@ -7924,7 +10151,7 @@ fprintf(stdout, "[%s] Initialize\n", mcinstrument_name);
 #define dlambda mccsource_div_dlambda
 #define gauss mccsource_div_gauss
 #define flux mccsource_div_flux
-#line 72 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 72 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 {
 sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
   sigmav = DEG2RAD*focus_ah/(sqrt(8.0*log(2.0)));
@@ -7970,7 +10197,7 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
   else if (dE)
     p_init *= 2*dE;
 }
-#line 7973 "./test.c"
+#line 10200 "./reverse_test.c"
 #undef flux
 #undef gauss
 #undef dlambda
@@ -7995,64 +10222,69 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
 #undef mccompcurtype
 #undef mccompcurindex
 
-  /* Initializations for component logspir. */
-  SIG_MESSAGE("logspir (Init)");
-#define mccompcurname  logspir
-#define mccompcurtype  LogSpiral
+  /* Initializations for component slit. */
+  SIG_MESSAGE("slit (Init)");
+#define mccompcurname  slit
+#define mccompcurtype  Slit
 #define mccompcurindex 4
-#define zstart mcclogspir_zstart
-#define zend mcclogspir_zend
-#define psi mcclogspir_psi
-#define precision mcclogspir_precision
-#define max_iterations mcclogspir_max_iterations
-#define branches mcclogspir_branches
-#define placeholder mcclogspir_placeholder
-#line 353 "LogSpiral.comp"
+#define xmin mccslit_xmin
+#define xmax mccslit_xmax
+#define ymin mccslit_ymin
+#define ymax mccslit_ymax
+#define radius mccslit_radius
+#define xwidth mccslit_xwidth
+#define yheight mccslit_yheight
+#line 50 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../optics/Slit.comp"
 {
-	//printf("does this even fucking care\n");
-	logspirp = &logspir;
-    double psi_rad;//=psi*DEG2RAD;
-    double k;//=arctan(psi_rad);
-    double theta_end;
-    double x_end;
-	///////////////////////////////////////////////////////////////////////////
-	/////////////// Initialize the logarithmic spiral
-	///////////////////////////////////////////////////////////////////////////
-	LogSpirinit(logspirp, zstart, zend, psi, precision, max_iterations, branches);
+if (xwidth > 0)  { 
+  if (!xmin && !xmax) {
+    xmax=xwidth/2;  xmin=-xmax;
+  } else {
+    fprintf(stderr,"Slit: %s: Error: please specify EITHER xmin & xmax or xwidth\n", NAME_CURRENT_COMP); exit(-1);
+  }
+ }
+ if (yheight > 0) { 
+   if (!ymin && !ymax) {
+     ymax=yheight/2; ymin=-ymax; 
+   } else {
+     fprintf(stderr,"Slit: %s: Error: please specify EITHER ymin & ymax or ywidth\n", NAME_CURRENT_COMP); exit(-1);
+   }
+ }
+ if (xmin == 0 && xmax == 0 && ymin == 0 && ymax == 0 && radius == 0)
+    { fprintf(stderr,"Slit: %s: Warning: Running with CLOSED slit - is this intentional?? \n", NAME_CURRENT_COMP); }
 
-	printf("theta_end%f", logspir.theta_end);
 }
-#line 8025 "./test.c"
-#undef placeholder
-#undef branches
-#undef max_iterations
-#undef precision
-#undef psi
-#undef zend
-#undef zstart
+#line 10257 "./reverse_test.c"
+#undef yheight
+#undef xwidth
+#undef radius
+#undef ymax
+#undef ymin
+#undef xmax
+#undef xmin
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
 
-  /* Initializations for component psd_monitor. */
-  SIG_MESSAGE("psd_monitor (Init)");
-#define mccompcurname  psd_monitor
+  /* Initializations for component psd_before_optic. */
+  SIG_MESSAGE("psd_before_optic (Init)");
+#define mccompcurname  psd_before_optic
 #define mccompcurtype  PSD_monitor
 #define mccompcurindex 5
-#define PSD_N mccpsd_monitor_PSD_N
-#define PSD_p mccpsd_monitor_PSD_p
-#define PSD_p2 mccpsd_monitor_PSD_p2
-#define nx mccpsd_monitor_nx
-#define ny mccpsd_monitor_ny
-#define filename mccpsd_monitor_filename
-#define xmin mccpsd_monitor_xmin
-#define xmax mccpsd_monitor_xmax
-#define ymin mccpsd_monitor_ymin
-#define ymax mccpsd_monitor_ymax
-#define xwidth mccpsd_monitor_xwidth
-#define yheight mccpsd_monitor_yheight
-#define restore_neutron mccpsd_monitor_restore_neutron
-#line 68 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#define PSD_N mccpsd_before_optic_PSD_N
+#define PSD_p mccpsd_before_optic_PSD_p
+#define PSD_p2 mccpsd_before_optic_PSD_p2
+#define nx mccpsd_before_optic_nx
+#define ny mccpsd_before_optic_ny
+#define filename mccpsd_before_optic_filename
+#define xmin mccpsd_before_optic_xmin
+#define xmax mccpsd_before_optic_xmax
+#define ymin mccpsd_before_optic_ymin
+#define ymax mccpsd_before_optic_ymax
+#define xwidth mccpsd_before_optic_xwidth
+#define yheight mccpsd_before_optic_yheight
+#define restore_neutron mccpsd_before_optic_restore_neutron
+#line 68 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
 {
   if (xwidth  > 0) { xmax = xwidth/2;  xmin = -xmax; }
   if (yheight > 0) { ymax = yheight/2; ymin = -ymax; }
@@ -8077,7 +10309,244 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
     }
   }
 }
-#line 8080 "./test.c"
+#line 10312 "./reverse_test.c"
+#undef restore_neutron
+#undef yheight
+#undef xwidth
+#undef ymax
+#undef ymin
+#undef xmax
+#undef xmin
+#undef filename
+#undef ny
+#undef nx
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+  /* Initializations for component flat_ellipse_horizontal. */
+  SIG_MESSAGE("flat_ellipse_horizontal (Init)");
+#define mccompcurname  flat_ellipse_horizontal
+#define mccompcurtype  FlatEllipse_finite_mirror
+#define mccompcurindex 6
+#define reflect mccflat_ellipse_horizontal_reflect
+#define s mccflat_ellipse_horizontal_s
+#define pTable mccflat_ellipse_horizontal_pTable
+#define R0 mccflat_ellipse_horizontal_R0
+#define Qc mccflat_ellipse_horizontal_Qc
+#define W mccflat_ellipse_horizontal_W
+#define alpha mccflat_ellipse_horizontal_alpha
+#define transmit mccflat_ellipse_horizontal_transmit
+#define sourceDist mccflat_ellipse_horizontal_sourceDist
+#define LStart mccflat_ellipse_horizontal_LStart
+#define LEnd mccflat_ellipse_horizontal_LEnd
+#define lStart mccflat_ellipse_horizontal_lStart
+#define lEnd mccflat_ellipse_horizontal_lEnd
+#define r_0 mccflat_ellipse_horizontal_r_0
+#define nummirror mccflat_ellipse_horizontal_nummirror
+#define mf mccflat_ellipse_horizontal_mf
+#define mb mccflat_ellipse_horizontal_mb
+#define mirror_width mccflat_ellipse_horizontal_mirror_width
+#define mirror_sidelength mccflat_ellipse_horizontal_mirror_sidelength
+#define doubleReflections mccflat_ellipse_horizontal_doubleReflections
+#line 81 "FlatEllipse_finite_mirror.comp"
+{
+    if (sourceDist == 0){
+        sourceDist = LStart;
+    }
+    pointer_lStart = &lStart;
+    //Load Reflectivity Data File
+    /*if (reflect && strlen(reflect)) {
+        if (Table_Read(&pTable, reflect, 1) <= 0)
+            exit(fprintf(stderr, "Can not read file: %s\n", reflect));
+    }
+
+    //Custom function for tracing neutrons using table data for reflectivity
+    void traceNeutronConicWithTables(Particle* pa, ConicSurf c) {
+        double tl = getTimeOfFirstCollisionConic(*pa, c);
+        if (tl < 0)
+            return;
+        else {
+            //Move Particle to Surface Edge
+            moveParticleT(tl,pa);
+
+            if (c.m==0) {
+                absorbParticle(pa);
+                return;
+            }
+
+            //Handle Reflectivity
+            Vec n = getNormConic(getParticlePos(*pa),c);
+            double vdotn = dotVec(n,getParticleVel(*pa));
+
+            double q = fabs(2*vdotn*V2Q);
+            double B;
+            if (reflect && strlen(reflect))
+                B=Table_Value(pTable, q, 1);
+            else {
+                B = R0;
+                if (q > Qc) {
+                    double arg = (q-c.m*Qc)/W;
+                    if(arg < 10)
+                        B *= .5*(1-tanh(arg))*(1-alpha*(q-Qc));
+                    else
+                        B=0;
+                }
+            }
+            if (B < 0)
+                B=0;
+            else if (B > 1)
+                B=1;
+            if (!transmit) {
+                if (!B) absorbParticle(pa);
+                pa->w *= B;
+                reflectParticle(n,pa);
+            } else {
+                if (B == 0 || rand01() >= B) { /*unreflected*/ /*}
+                else { reflectParticle(n,pa); }
+            }
+        }
+    }
+    */
+    //Make new scene
+    silicon = (mirror_width==0) ? 0 : -1; //neutron starts in air by default
+    s = makeScene();
+    rfront_inner = get_r_at_z0(nummirror, 0, r_0, lStart, sourceDist, LEnd, lStart, lEnd);
+    
+    //Set Scene to use custom trace function for conic
+    //s.traceNeutronConic = traceNeutronConicWithTables;
+
+    //Add Geometry Here
+    Point p1;
+    for (int i = 0; i < nummirror; i++) {
+		    p1 = makePoint(rfront_inner[i], 0, lStart);
+            addFlatEllipse(LStart, LEnd, p1, lStart, lEnd, -mirror_sidelength/2, mirror_sidelength/2, mf, doubleReflections, &s); //inner side of the mirror
+		    printf("b[%d] = %f\n", i, rfront_inner[i]);
+    }
+    if (mirror_width > 0){
+        for (int i = 0; i < nummirror; i++){
+            p1 = makePoint(rfront_inner[i]+mirror_width, 0, lStart);
+            addFlatEllipse(LStart, LEnd, p1, lStart, lEnd, -mirror_sidelength/2, mirror_sidelength/2, mb, doubleReflections, &s); //backside of the above mirror
+        }
+    }
+    addDisk(lEnd, 0.0, 2.0, &s); //neutrons will be propagated important if the are in silicon
+	//addEllipsoid(-L, L,p1, -l,+l, 40,&s);
+}
+#line 10438 "./reverse_test.c"
+#undef doubleReflections
+#undef mirror_sidelength
+#undef mirror_width
+#undef mb
+#undef mf
+#undef nummirror
+#undef r_0
+#undef lEnd
+#undef lStart
+#undef LEnd
+#undef LStart
+#undef sourceDist
+#undef transmit
+#undef alpha
+#undef W
+#undef Qc
+#undef R0
+#undef pTable
+#undef s
+#undef reflect
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+  /* Initializations for component logspir. */
+  SIG_MESSAGE("logspir (Init)");
+#define mccompcurname  logspir
+#define mccompcurtype  LogSpiral
+#define mccompcurindex 7
+#define zstart mcclogspir_zstart
+#define zend mcclogspir_zend
+#define psi mcclogspir_psi
+#define phi_rot mcclogspir_phi_rot
+#define precision mcclogspir_precision
+#define max_iterations mcclogspir_max_iterations
+#define mValue mcclogspir_mValue
+#define branches mcclogspir_branches
+#define placeholder mcclogspir_placeholder
+#line 411 "LogSpiral.comp"
+{
+	//printf("does this even fucking care\n");
+	logspirp = &logspir;
+    double psi_rad;//=psi*DEG2RAD;
+    double k;//=arctan(psi_rad);
+    double theta_end;
+    double x_end;
+	///////////////////////////////////////////////////////////////////////////
+	/////////////// Initialize the logarithmic spiral
+	///////////////////////////////////////////////////////////////////////////
+	LogSpirinit(logspirp, zstart, zend, psi, phi_rot, mValue, precision, max_iterations, branches);
+
+	printf("theta_end%f", logspir.theta_end);
+}
+#line 10492 "./reverse_test.c"
+#undef placeholder
+#undef branches
+#undef mValue
+#undef max_iterations
+#undef precision
+#undef phi_rot
+#undef psi
+#undef zend
+#undef zstart
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+  /* Initializations for component psd_monitor. */
+  SIG_MESSAGE("psd_monitor (Init)");
+#define mccompcurname  psd_monitor
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 8
+#define PSD_N mccpsd_monitor_PSD_N
+#define PSD_p mccpsd_monitor_PSD_p
+#define PSD_p2 mccpsd_monitor_PSD_p2
+#define nx mccpsd_monitor_nx
+#define ny mccpsd_monitor_ny
+#define filename mccpsd_monitor_filename
+#define xmin mccpsd_monitor_xmin
+#define xmax mccpsd_monitor_xmax
+#define ymin mccpsd_monitor_ymin
+#define ymax mccpsd_monitor_ymax
+#define xwidth mccpsd_monitor_xwidth
+#define yheight mccpsd_monitor_yheight
+#define restore_neutron mccpsd_monitor_restore_neutron
+#line 68 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+{
+  if (xwidth  > 0) { xmax = xwidth/2;  xmin = -xmax; }
+  if (yheight > 0) { ymax = yheight/2; ymin = -ymax; }
+
+  if ((xmin >= xmax) || (ymin >= ymax)){
+    printf("PSD_monitor: %s: Null detection area !\n"
+           "ERROR        (xwidth,yheight,xmin,xmax,ymin,ymax). Exiting",
+    NAME_CURRENT_COMP);
+    exit(-1);
+  }
+
+  PSD_N = create_darr2d(nx, ny);
+  PSD_p = create_darr2d(nx, ny);
+  PSD_p2 = create_darr2d(nx, ny);
+
+  int i, j;
+  for (i=0; i<nx; i++){
+    for (j=0; j<ny; j++){
+      PSD_N[i][j] = 0;
+      PSD_p[i][j] = 0;
+      PSD_p2[i][j] = 0;
+    }
+  }
+}
+#line 10549 "./reverse_test.c"
 #undef restore_neutron
 #undef yheight
 #undef xwidth
@@ -8204,7 +10673,7 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 70 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 70 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   double ncount;
   ncount = mcget_run_num();
@@ -8248,7 +10717,7 @@ MCNUM minutes = mccorigin_minutes;
     if (flag_save) mcsave(NULL);
   }
 }
-#line 8251 "./test.c"
+#line 10720 "./reverse_test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8481,7 +10950,7 @@ MCNUM lambda0 = mccsource_div_lambda0;
 MCNUM dlambda = mccsource_div_dlambda;
 MCNUM gauss = mccsource_div_gauss;
 MCNUM flux = mccsource_div_flux;
-#line 118 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 118 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 {
   double E,lambda,v;
 
@@ -8529,7 +10998,7 @@ MCNUM flux = mccsource_div_flux;
   vy = tan_v * vz;
   vx = tan_h * vz;
 }
-#line 8532 "./test.c"
+#line 11001 "./reverse_test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -8584,7 +11053,465 @@ mcnlsy,
 mcnlsz,
 mcnlp)
 
-  /* TRACE Component logspir [4] */
+  /* TRACE Component slit [4] */
+  mccoordschange(mcposrslit, mcrotrslit,
+    &mcnlx,
+    &mcnly,
+    &mcnlz,
+    &mcnlvx,
+    &mcnlvy,
+    &mcnlvz,
+    &mcnlsx,
+    &mcnlsy,
+    &mcnlsz);
+  /* define label inside component slit (without coords transformations) */
+  mcJumpTrace_slit:
+  SIG_MESSAGE("slit (Trace)");
+  mcDEBUG_COMP("slit")
+  mcDEBUG_STATE(
+    mcnlx,
+    mcnly,
+    mcnlz,
+    mcnlvx,
+    mcnlvy,
+    mcnlvz,
+    mcnlt,
+    mcnlsx,
+    mcnlsy,
+    mcnlsz,
+    mcnlp)
+#define x mcnlx
+#define y mcnly
+#define z mcnlz
+#define vx mcnlvx
+#define vy mcnlvy
+#define vz mcnlvz
+#define t mcnlt
+#define sx mcnlsx
+#define sy mcnlsy
+#define sz mcnlsz
+#define p mcnlp
+
+#define mcabsorbComp mcabsorbCompslit
+  STORE_NEUTRON(4,
+    mcnlx,
+    mcnly,
+    mcnlz,
+    mcnlvx,
+    mcnlvy,
+    mcnlvz,
+    mcnlt,
+    mcnlsx,
+    mcnlsy,
+    mcnlsz,
+    mcnlp);
+  mcScattered=0;
+  mcRestore=0;
+  mcNCounter[4]++;
+  mcPCounter[4] += p;
+  mcP2Counter[4] += p*p;
+#define mccompcurname  slit
+#define mccompcurtype  Slit
+#define mccompcurindex 4
+{   /* Declarations of slit=Slit() SETTING parameters. */
+MCNUM xmin = mccslit_xmin;
+MCNUM xmax = mccslit_xmax;
+MCNUM ymin = mccslit_ymin;
+MCNUM ymax = mccslit_ymax;
+MCNUM radius = mccslit_radius;
+MCNUM xwidth = mccslit_xwidth;
+MCNUM yheight = mccslit_yheight;
+#line 71 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../optics/Slit.comp"
+{
+    PROP_Z0;
+    if (((radius == 0) && (x<xmin || x>xmax || y<ymin || y>ymax))
+	|| ((radius != 0) && (x*x + y*y > radius*radius))) {
+      RESTORE_NEUTRON(INDEX_CURRENT_COMP, x, y, z, vx, vy, vz, t, sx, sy, sz, p);
+      ABSORB;
+    }
+    else
+        SCATTER;
+}
+#line 11135 "./reverse_test.c"
+}   /* End of slit=Slit() SETTING parameter declarations. */
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+  /* Label for restoring  neutron */
+  mcabsorbCompslit:
+  if (RESTORE) /* restore if needed */
+  { RESTORE_NEUTRON(4,
+      mcnlx,
+      mcnly,
+      mcnlz,
+      mcnlvx,
+      mcnlvy,
+      mcnlvz,
+      mcnlt,
+      mcnlsx,
+      mcnlsy,
+      mcnlsz,
+      mcnlp); }
+#undef mcabsorbComp
+#undef p
+#undef sz
+#undef sy
+#undef sx
+#undef t
+#undef vz
+#undef vy
+#undef vx
+#undef z
+#undef y
+#undef x
+  mcDEBUG_STATE(
+mcnlx,
+mcnly,
+mcnlz,
+mcnlvx,
+mcnlvy,
+mcnlvz,
+mcnlt,
+mcnlsx,
+mcnlsy,
+mcnlsz,
+mcnlp)
+
+  /* TRACE Component psd_before_optic [5] */
+  mccoordschange(mcposrpsd_before_optic, mcrotrpsd_before_optic,
+    &mcnlx,
+    &mcnly,
+    &mcnlz,
+    &mcnlvx,
+    &mcnlvy,
+    &mcnlvz,
+    &mcnlsx,
+    &mcnlsy,
+    &mcnlsz);
+  /* define label inside component psd_before_optic (without coords transformations) */
+  mcJumpTrace_psd_before_optic:
+  SIG_MESSAGE("psd_before_optic (Trace)");
+  mcDEBUG_COMP("psd_before_optic")
+  mcDEBUG_STATE(
+    mcnlx,
+    mcnly,
+    mcnlz,
+    mcnlvx,
+    mcnlvy,
+    mcnlvz,
+    mcnlt,
+    mcnlsx,
+    mcnlsy,
+    mcnlsz,
+    mcnlp)
+#define x mcnlx
+#define y mcnly
+#define z mcnlz
+#define vx mcnlvx
+#define vy mcnlvy
+#define vz mcnlvz
+#define t mcnlt
+#define sx mcnlsx
+#define sy mcnlsy
+#define sz mcnlsz
+#define p mcnlp
+
+#define mcabsorbComp mcabsorbComppsd_before_optic
+  STORE_NEUTRON(5,
+    mcnlx,
+    mcnly,
+    mcnlz,
+    mcnlvx,
+    mcnlvy,
+    mcnlvz,
+    mcnlt,
+    mcnlsx,
+    mcnlsy,
+    mcnlsz,
+    mcnlp);
+  mcScattered=0;
+  mcRestore=0;
+  mcNCounter[5]++;
+  mcPCounter[5] += p;
+  mcP2Counter[5] += p*p;
+#define mccompcurname  psd_before_optic
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 5
+#define PSD_N mccpsd_before_optic_PSD_N
+#define PSD_p mccpsd_before_optic_PSD_p
+#define PSD_p2 mccpsd_before_optic_PSD_p2
+{   /* Declarations of psd_before_optic=PSD_monitor() SETTING parameters. */
+int nx = mccpsd_before_optic_nx;
+int ny = mccpsd_before_optic_ny;
+char* filename = mccpsd_before_optic_filename;
+MCNUM xmin = mccpsd_before_optic_xmin;
+MCNUM xmax = mccpsd_before_optic_xmax;
+MCNUM ymin = mccpsd_before_optic_ymin;
+MCNUM ymax = mccpsd_before_optic_ymax;
+MCNUM xwidth = mccpsd_before_optic_xwidth;
+MCNUM yheight = mccpsd_before_optic_yheight;
+MCNUM restore_neutron = mccpsd_before_optic_restore_neutron;
+#line 94 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+{
+  PROP_Z0;
+  if (x>xmin && x<xmax && y>ymin && y<ymax){
+    int i = floor((x - xmin)*nx/(xmax - xmin));
+    int j = floor((y - ymin)*ny/(ymax - ymin));
+    PSD_N[i][j]++;
+    PSD_p[i][j] += p;
+    PSD_p2[i][j] += p*p;
+    SCATTER;
+  }
+  if (restore_neutron) {
+    RESTORE_NEUTRON(INDEX_CURRENT_COMP, x, y, z, vx, vy, vz, t, sx, sy, sz, p);
+  }
+}
+#line 11269 "./reverse_test.c"
+}   /* End of psd_before_optic=PSD_monitor() SETTING parameter declarations. */
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+  /* Label for restoring  neutron */
+  mcabsorbComppsd_before_optic:
+  if (RESTORE) /* restore if needed */
+  { RESTORE_NEUTRON(5,
+      mcnlx,
+      mcnly,
+      mcnlz,
+      mcnlvx,
+      mcnlvy,
+      mcnlvz,
+      mcnlt,
+      mcnlsx,
+      mcnlsy,
+      mcnlsz,
+      mcnlp); }
+#undef mcabsorbComp
+#undef p
+#undef sz
+#undef sy
+#undef sx
+#undef t
+#undef vz
+#undef vy
+#undef vx
+#undef z
+#undef y
+#undef x
+  mcDEBUG_STATE(
+mcnlx,
+mcnly,
+mcnlz,
+mcnlvx,
+mcnlvy,
+mcnlvz,
+mcnlt,
+mcnlsx,
+mcnlsy,
+mcnlsz,
+mcnlp)
+
+  /* TRACE Component flat_ellipse_horizontal [6] */
+  mccoordschange(mcposrflat_ellipse_horizontal, mcrotrflat_ellipse_horizontal,
+    &mcnlx,
+    &mcnly,
+    &mcnlz,
+    &mcnlvx,
+    &mcnlvy,
+    &mcnlvz,
+    &mcnlsx,
+    &mcnlsy,
+    &mcnlsz);
+  /* define label inside component flat_ellipse_horizontal (without coords transformations) */
+  mcJumpTrace_flat_ellipse_horizontal:
+  SIG_MESSAGE("flat_ellipse_horizontal (Trace)");
+  mcDEBUG_COMP("flat_ellipse_horizontal")
+  mcDEBUG_STATE(
+    mcnlx,
+    mcnly,
+    mcnlz,
+    mcnlvx,
+    mcnlvy,
+    mcnlvz,
+    mcnlt,
+    mcnlsx,
+    mcnlsy,
+    mcnlsz,
+    mcnlp)
+#define x mcnlx
+#define y mcnly
+#define z mcnlz
+#define vx mcnlvx
+#define vy mcnlvy
+#define vz mcnlvz
+#define t mcnlt
+#define sx mcnlsx
+#define sy mcnlsy
+#define sz mcnlsz
+#define p mcnlp
+
+#define mcabsorbComp mcabsorbCompflat_ellipse_horizontal
+  STORE_NEUTRON(6,
+    mcnlx,
+    mcnly,
+    mcnlz,
+    mcnlvx,
+    mcnlvy,
+    mcnlvz,
+    mcnlt,
+    mcnlsx,
+    mcnlsy,
+    mcnlsz,
+    mcnlp);
+  mcScattered=0;
+  mcRestore=0;
+  mcNCounter[6]++;
+  mcPCounter[6] += p;
+  mcP2Counter[6] += p*p;
+#define mccompcurname  flat_ellipse_horizontal
+#define mccompcurtype  FlatEllipse_finite_mirror
+#define mccompcurindex 6
+#define reflect mccflat_ellipse_horizontal_reflect
+#define s mccflat_ellipse_horizontal_s
+#define pTable mccflat_ellipse_horizontal_pTable
+#define R0 mccflat_ellipse_horizontal_R0
+#define Qc mccflat_ellipse_horizontal_Qc
+#define W mccflat_ellipse_horizontal_W
+#define alpha mccflat_ellipse_horizontal_alpha
+#define transmit mccflat_ellipse_horizontal_transmit
+{   /* Declarations of flat_ellipse_horizontal=FlatEllipse_finite_mirror() SETTING parameters. */
+MCNUM sourceDist = mccflat_ellipse_horizontal_sourceDist;
+MCNUM LStart = mccflat_ellipse_horizontal_LStart;
+MCNUM LEnd = mccflat_ellipse_horizontal_LEnd;
+MCNUM lStart = mccflat_ellipse_horizontal_lStart;
+MCNUM lEnd = mccflat_ellipse_horizontal_lEnd;
+MCNUM r_0 = mccflat_ellipse_horizontal_r_0;
+MCNUM nummirror = mccflat_ellipse_horizontal_nummirror;
+MCNUM mf = mccflat_ellipse_horizontal_mf;
+MCNUM mb = mccflat_ellipse_horizontal_mb;
+MCNUM mirror_width = mccflat_ellipse_horizontal_mirror_width;
+MCNUM mirror_sidelength = mccflat_ellipse_horizontal_mirror_sidelength;
+MCNUM doubleReflections = mccflat_ellipse_horizontal_doubleReflections;
+#line 165 "FlatEllipse_finite_mirror.comp"
+{
+    dt = (-z + *pointer_lStart)/vz; // first propagate neutron to the entrance window
+    if (dt < 0) {
+        printf("negative time\n");
+    }
+    PROP_DT(dt); //propagate neutron to the entrance window of the NMO
+    Particle pa = makeParticle(x, y, z, vx, vy, vz, t, sx, sy, sz, silicon, p); //Assume the particle is not arriving in silicon
+    if (mirror_width>0){ // if the width of the mirrors is finite neutrons have to know whether they are in silicon or not
+        for (int i = 0; i < nummirror; i++){//TODO check if the real frontside is hit
+            dt = fabs(rfront_inner[i]); //make sure the mirror distance to check against is positive
+            if (dt +mirror_width >= fabs(x)){ //backside of the mirror further out than neutron
+                if (dt <= fabs(x)) { // mirror itself closer to the optical axis than the mirro, i.e., we arrive in silicon
+                    //ABSORB;
+                    pa = makeParticle(x,y,z,vx,vy,vz, t, sx, sy, sz, silicon, p); //create a particle knowing it is in silicon
+                    //First we have to refract at the entrance
+                    Vec nStart = makeVec(0, 0, 1); //surface normal is oriented in beam direction hopefully
+                    Vec init_vec = getParticleVel(pa);
+                
+
+                    //printf("before vx = %f\n", pa._vx);
+                    //printf("before vy = %f\n", pa._vy);
+                    //printf("before vz = %f\n", pa._vz);
+                    refractNeutronFlat(&pa, nStart, 0, 0.478);//m_{silicon} =  0.478 laut Peter
+                    //printf("after vx = %f\n", pa._vx);
+                    //printf("after vy = %f\n", pa._vy);
+                    //printf("after vz = %f\n", pa._vz);
+                    break;
+                    }
+                }
+            else{   // we do not arrive in Silicon
+                //printf("arrived in Air\n");
+                    break;
+                    }
+
+        }
+    }
+    
+    traceSingleNeutron(&pa, s);//trace the neutron through the mirror assembly
+    Vec nEnd = makeVec(0, 0, 1);
+    if (pa.silicon==1){
+        refractNeutronFlat(&pa, nEnd, 0.478, 0);//TODO
+    }
+
+
+    //Communicate particle state to McStas
+    x = pa._x;
+    y = pa._y;
+    z = pa._z;
+    vx = pa._vx;
+    vy = pa._vy;
+    vz = pa._vz;
+    t = pa._t;
+    sx = pa._sx;
+    sy = pa._sy;
+    sz = pa._sz;
+    p = pa.w;
+
+    if (pa.absorb)
+        ABSORB;
+
+    SCATTER;
+}
+#line 11461 "./reverse_test.c"
+}   /* End of flat_ellipse_horizontal=FlatEllipse_finite_mirror() SETTING parameter declarations. */
+#undef transmit
+#undef alpha
+#undef W
+#undef Qc
+#undef R0
+#undef pTable
+#undef s
+#undef reflect
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+  /* Label for restoring  neutron */
+  mcabsorbCompflat_ellipse_horizontal:
+  if (RESTORE) /* restore if needed */
+  { RESTORE_NEUTRON(6,
+      mcnlx,
+      mcnly,
+      mcnlz,
+      mcnlvx,
+      mcnlvy,
+      mcnlvz,
+      mcnlt,
+      mcnlsx,
+      mcnlsy,
+      mcnlsz,
+      mcnlp); }
+#undef mcabsorbComp
+#undef p
+#undef sz
+#undef sy
+#undef sx
+#undef t
+#undef vz
+#undef vy
+#undef vx
+#undef z
+#undef y
+#undef x
+  mcDEBUG_STATE(
+mcnlx,
+mcnly,
+mcnlz,
+mcnlvx,
+mcnlvy,
+mcnlvz,
+mcnlt,
+mcnlsx,
+mcnlsy,
+mcnlsz,
+mcnlp)
+
+  /* TRACE Component logspir [7] */
   mccoordschange(mcposrlogspir, mcrotrlogspir,
     &mcnlx,
     &mcnly,
@@ -8624,7 +11551,7 @@ mcnlp)
 #define p mcnlp
 
 #define mcabsorbComp mcabsorbComplogspir
-  STORE_NEUTRON(4,
+  STORE_NEUTRON(7,
     mcnlx,
     mcnly,
     mcnlz,
@@ -8638,21 +11565,23 @@ mcnlp)
     mcnlp);
   mcScattered=0;
   mcRestore=0;
-  mcNCounter[4]++;
-  mcPCounter[4] += p;
-  mcP2Counter[4] += p*p;
+  mcNCounter[7]++;
+  mcPCounter[7] += p;
+  mcP2Counter[7] += p*p;
 #define mccompcurname  logspir
 #define mccompcurtype  LogSpiral
-#define mccompcurindex 4
+#define mccompcurindex 7
 {   /* Declarations of logspir=LogSpiral() SETTING parameters. */
 MCNUM zstart = mcclogspir_zstart;
 MCNUM zend = mcclogspir_zend;
 MCNUM psi = mcclogspir_psi;
+MCNUM phi_rot = mcclogspir_phi_rot;
 MCNUM precision = mcclogspir_precision;
 MCNUM max_iterations = mcclogspir_max_iterations;
+MCNUM mValue = mcclogspir_mValue;
 MCNUM branches = mcclogspir_branches;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 371 "LogSpiral.comp"
+#line 429 "LogSpiral.comp"
 {
   part_log n;
 
@@ -8681,7 +11610,7 @@ MCNUM placeholder = mcclogspir_placeholder;
 
 
 }
-#line 8684 "./test.c"
+#line 11613 "./reverse_test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8689,7 +11618,7 @@ MCNUM placeholder = mcclogspir_placeholder;
   /* Label for restoring  neutron */
   mcabsorbComplogspir:
   if (RESTORE) /* restore if needed */
-  { RESTORE_NEUTRON(4,
+  { RESTORE_NEUTRON(7,
       mcnlx,
       mcnly,
       mcnlz,
@@ -8726,7 +11655,7 @@ mcnlsy,
 mcnlsz,
 mcnlp)
 
-  /* TRACE Component psd_monitor [5] */
+  /* TRACE Component psd_monitor [8] */
   mccoordschange(mcposrpsd_monitor, mcrotrpsd_monitor,
     &mcnlx,
     &mcnly,
@@ -8766,7 +11695,7 @@ mcnlp)
 #define p mcnlp
 
 #define mcabsorbComp mcabsorbComppsd_monitor
-  STORE_NEUTRON(5,
+  STORE_NEUTRON(8,
     mcnlx,
     mcnly,
     mcnlz,
@@ -8780,12 +11709,12 @@ mcnlp)
     mcnlp);
   mcScattered=0;
   mcRestore=0;
-  mcNCounter[5]++;
-  mcPCounter[5] += p;
-  mcP2Counter[5] += p*p;
+  mcNCounter[8]++;
+  mcPCounter[8] += p;
+  mcP2Counter[8] += p*p;
 #define mccompcurname  psd_monitor
 #define mccompcurtype  PSD_monitor
-#define mccompcurindex 5
+#define mccompcurindex 8
 #define PSD_N mccpsd_monitor_PSD_N
 #define PSD_p mccpsd_monitor_PSD_p
 #define PSD_p2 mccpsd_monitor_PSD_p2
@@ -8800,7 +11729,7 @@ MCNUM ymax = mccpsd_monitor_ymax;
 MCNUM xwidth = mccpsd_monitor_xwidth;
 MCNUM yheight = mccpsd_monitor_yheight;
 MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
-#line 94 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 94 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
 {
   PROP_Z0;
   if (x>xmin && x<xmax && y>ymin && y<ymax){
@@ -8815,7 +11744,7 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
     RESTORE_NEUTRON(INDEX_CURRENT_COMP, x, y, z, vx, vy, vz, t, sx, sy, sz, p);
   }
 }
-#line 8818 "./test.c"
+#line 11747 "./reverse_test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -8826,7 +11755,7 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
   /* Label for restoring  neutron */
   mcabsorbComppsd_monitor:
   if (RESTORE) /* restore if needed */
-  { RESTORE_NEUTRON(5,
+  { RESTORE_NEUTRON(8,
       mcnlx,
       mcnly,
       mcnlz,
@@ -8910,7 +11839,7 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 115 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 115 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   MPI_MASTER(fprintf(stdout, "\nSave [%s]\n", mcinstrument_name););
   if (profile && strlen(profile) && strcmp(profile,"NULL") && strcmp(profile,"0")) {
@@ -8927,7 +11856,7 @@ MCNUM minutes = mccorigin_minutes;
 
   }
 }
-#line 8930 "./test.c"
+#line 11859 "./reverse_test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8937,11 +11866,50 @@ MCNUM minutes = mccorigin_minutes;
 #undef mccompcurtype
 #undef mccompcurindex
 
+  /* User SAVE code for component 'psd_before_optic'. */
+  SIG_MESSAGE("psd_before_optic (Save)");
+#define mccompcurname  psd_before_optic
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 5
+#define PSD_N mccpsd_before_optic_PSD_N
+#define PSD_p mccpsd_before_optic_PSD_p
+#define PSD_p2 mccpsd_before_optic_PSD_p2
+{   /* Declarations of psd_before_optic=PSD_monitor() SETTING parameters. */
+int nx = mccpsd_before_optic_nx;
+int ny = mccpsd_before_optic_ny;
+char* filename = mccpsd_before_optic_filename;
+MCNUM xmin = mccpsd_before_optic_xmin;
+MCNUM xmax = mccpsd_before_optic_xmax;
+MCNUM ymin = mccpsd_before_optic_ymin;
+MCNUM ymax = mccpsd_before_optic_ymax;
+MCNUM xwidth = mccpsd_before_optic_xwidth;
+MCNUM yheight = mccpsd_before_optic_yheight;
+MCNUM restore_neutron = mccpsd_before_optic_restore_neutron;
+#line 110 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+{
+  DETECTOR_OUT_2D(
+    "PSD monitor",
+    "X position [cm]",
+    "Y position [cm]",
+    xmin*100.0, xmax*100.0, ymin*100.0, ymax*100.0,
+    nx, ny,
+    &PSD_N[0][0],&PSD_p[0][0],&PSD_p2[0][0],
+    filename);
+}
+#line 11899 "./reverse_test.c"
+}   /* End of psd_before_optic=PSD_monitor() SETTING parameter declarations. */
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
   /* User SAVE code for component 'psd_monitor'. */
   SIG_MESSAGE("psd_monitor (Save)");
 #define mccompcurname  psd_monitor
 #define mccompcurtype  PSD_monitor
-#define mccompcurindex 5
+#define mccompcurindex 8
 #define PSD_N mccpsd_monitor_PSD_N
 #define PSD_p mccpsd_monitor_PSD_p
 #define PSD_p2 mccpsd_monitor_PSD_p2
@@ -8956,7 +11924,7 @@ MCNUM ymax = mccpsd_monitor_ymax;
 MCNUM xwidth = mccpsd_monitor_xwidth;
 MCNUM yheight = mccpsd_monitor_yheight;
 MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
-#line 110 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 110 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
 {
   DETECTOR_OUT_2D(
     "PSD monitor",
@@ -8967,7 +11935,7 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
     &PSD_N[0][0],&PSD_p[0][0],&PSD_p2[0][0],
     filename);
 }
-#line 8970 "./test.c"
+#line 11938 "./reverse_test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -8997,7 +11965,7 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 133 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 133 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   time_t NowTime;
   time(&NowTime);
@@ -9010,7 +11978,7 @@ MCNUM minutes = mccorigin_minutes;
     fprintf(stdout, "%g [min] ", difftime(NowTime,StartTime)/60.0);
   fprintf(stdout, "\n");
 }
-#line 9013 "./test.c"
+#line 11981 "./reverse_test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -9029,14 +11997,102 @@ MCNUM minutes = mccorigin_minutes;
     if (!mcNCounter[3]) fprintf(stderr, "Warning: No neutron could reach Component[3] source_div\n");
     if (mcAbsorbProp[3]) fprintf(stderr, "Warning: %g events were removed in Component[3] source_div=Source_div()\n"
 "         (negative time, miss next components, rounding errors, Nan, Inf).\n", mcAbsorbProp[3]);
-    if (!mcNCounter[4]) fprintf(stderr, "Warning: No neutron could reach Component[4] logspir\n");
-    if (mcAbsorbProp[4]) fprintf(stderr, "Warning: %g events were removed in Component[4] logspir=LogSpiral()\n"
+    if (!mcNCounter[4]) fprintf(stderr, "Warning: No neutron could reach Component[4] slit\n");
+    if (mcAbsorbProp[4]) fprintf(stderr, "Warning: %g events were removed in Component[4] slit=Slit()\n"
 "         (negative time, miss next components, rounding errors, Nan, Inf).\n", mcAbsorbProp[4]);
+  /* User FINALLY code for component 'psd_before_optic'. */
+  SIG_MESSAGE("psd_before_optic (Finally)");
+#define mccompcurname  psd_before_optic
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 5
+#define PSD_N mccpsd_before_optic_PSD_N
+#define PSD_p mccpsd_before_optic_PSD_p
+#define PSD_p2 mccpsd_before_optic_PSD_p2
+{   /* Declarations of psd_before_optic=PSD_monitor() SETTING parameters. */
+int nx = mccpsd_before_optic_nx;
+int ny = mccpsd_before_optic_ny;
+char* filename = mccpsd_before_optic_filename;
+MCNUM xmin = mccpsd_before_optic_xmin;
+MCNUM xmax = mccpsd_before_optic_xmax;
+MCNUM ymin = mccpsd_before_optic_ymin;
+MCNUM ymax = mccpsd_before_optic_ymax;
+MCNUM xwidth = mccpsd_before_optic_xwidth;
+MCNUM yheight = mccpsd_before_optic_yheight;
+MCNUM restore_neutron = mccpsd_before_optic_restore_neutron;
+#line 122 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+{
+  destroy_darr2d(PSD_N);
+  destroy_darr2d(PSD_p);
+  destroy_darr2d(PSD_p2);
+}
+#line 12024 "./reverse_test.c"
+}   /* End of psd_before_optic=PSD_monitor() SETTING parameter declarations. */
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+    if (!mcNCounter[5]) fprintf(stderr, "Warning: No neutron could reach Component[5] psd_before_optic\n");
+    if (mcAbsorbProp[5]) fprintf(stderr, "Warning: %g events were removed in Component[5] psd_before_optic=PSD_monitor()\n"
+"         (negative time, miss next components, rounding errors, Nan, Inf).\n", mcAbsorbProp[5]);
+  /* User FINALLY code for component 'flat_ellipse_horizontal'. */
+  SIG_MESSAGE("flat_ellipse_horizontal (Finally)");
+#define mccompcurname  flat_ellipse_horizontal
+#define mccompcurtype  FlatEllipse_finite_mirror
+#define mccompcurindex 6
+#define reflect mccflat_ellipse_horizontal_reflect
+#define s mccflat_ellipse_horizontal_s
+#define pTable mccflat_ellipse_horizontal_pTable
+#define R0 mccflat_ellipse_horizontal_R0
+#define Qc mccflat_ellipse_horizontal_Qc
+#define W mccflat_ellipse_horizontal_W
+#define alpha mccflat_ellipse_horizontal_alpha
+#define transmit mccflat_ellipse_horizontal_transmit
+{   /* Declarations of flat_ellipse_horizontal=FlatEllipse_finite_mirror() SETTING parameters. */
+MCNUM sourceDist = mccflat_ellipse_horizontal_sourceDist;
+MCNUM LStart = mccflat_ellipse_horizontal_LStart;
+MCNUM LEnd = mccflat_ellipse_horizontal_LEnd;
+MCNUM lStart = mccflat_ellipse_horizontal_lStart;
+MCNUM lEnd = mccflat_ellipse_horizontal_lEnd;
+MCNUM r_0 = mccflat_ellipse_horizontal_r_0;
+MCNUM nummirror = mccflat_ellipse_horizontal_nummirror;
+MCNUM mf = mccflat_ellipse_horizontal_mf;
+MCNUM mb = mccflat_ellipse_horizontal_mb;
+MCNUM mirror_width = mccflat_ellipse_horizontal_mirror_width;
+MCNUM mirror_sidelength = mccflat_ellipse_horizontal_mirror_sidelength;
+MCNUM doubleReflections = mccflat_ellipse_horizontal_doubleReflections;
+#line 228 "FlatEllipse_finite_mirror.comp"
+{
+    //Mainly Writes Inline Detector Data
+    finishSimulation(&s);
+}
+#line 12066 "./reverse_test.c"
+}   /* End of flat_ellipse_horizontal=FlatEllipse_finite_mirror() SETTING parameter declarations. */
+#undef transmit
+#undef alpha
+#undef W
+#undef Qc
+#undef R0
+#undef pTable
+#undef s
+#undef reflect
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+    if (!mcNCounter[6]) fprintf(stderr, "Warning: No neutron could reach Component[6] flat_ellipse_horizontal\n");
+    if (mcAbsorbProp[6]) fprintf(stderr, "Warning: %g events were removed in Component[6] flat_ellipse_horizontal=FlatEllipse_finite_mirror()\n"
+"         (negative time, miss next components, rounding errors, Nan, Inf).\n", mcAbsorbProp[6]);
+    if (!mcNCounter[7]) fprintf(stderr, "Warning: No neutron could reach Component[7] logspir\n");
+    if (mcAbsorbProp[7]) fprintf(stderr, "Warning: %g events were removed in Component[7] logspir=LogSpiral()\n"
+"         (negative time, miss next components, rounding errors, Nan, Inf).\n", mcAbsorbProp[7]);
   /* User FINALLY code for component 'psd_monitor'. */
   SIG_MESSAGE("psd_monitor (Finally)");
 #define mccompcurname  psd_monitor
 #define mccompcurtype  PSD_monitor
-#define mccompcurindex 5
+#define mccompcurindex 8
 #define PSD_N mccpsd_monitor_PSD_N
 #define PSD_p mccpsd_monitor_PSD_p
 #define PSD_p2 mccpsd_monitor_PSD_p2
@@ -9051,13 +12107,13 @@ MCNUM ymax = mccpsd_monitor_ymax;
 MCNUM xwidth = mccpsd_monitor_xwidth;
 MCNUM yheight = mccpsd_monitor_yheight;
 MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
-#line 122 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 122 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
 {
   destroy_darr2d(PSD_N);
   destroy_darr2d(PSD_p);
   destroy_darr2d(PSD_p2);
 }
-#line 9056 "./test.c"
+#line 12109 "./reverse_test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -9066,9 +12122,9 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
 #undef mccompcurtype
 #undef mccompcurindex
 
-    if (!mcNCounter[5]) fprintf(stderr, "Warning: No neutron could reach Component[5] psd_monitor\n");
-    if (mcAbsorbProp[5]) fprintf(stderr, "Warning: %g events were removed in Component[5] psd_monitor=PSD_monitor()\n"
-"         (negative time, miss next components, rounding errors, Nan, Inf).\n", mcAbsorbProp[5]);
+    if (!mcNCounter[8]) fprintf(stderr, "Warning: No neutron could reach Component[8] psd_monitor\n");
+    if (mcAbsorbProp[8]) fprintf(stderr, "Warning: %g events were removed in Component[8] psd_monitor=PSD_monitor()\n"
+"         (negative time, miss next components, rounding errors, Nan, Inf).\n", mcAbsorbProp[8]);
   mcsiminfo_close(); 
 } /* end finally */
 #define magnify mcdis_magnify
@@ -9099,11 +12155,11 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 147 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 147 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   
 }
-#line 9101 "./test.c"
+#line 12154 "./reverse_test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -9119,7 +12175,7 @@ MCNUM minutes = mccorigin_minutes;
 #define mccompcurname  source
 #define mccompcurtype  Arm
 #define mccompcurindex 2
-#line 40 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../optics/Arm.comp"
+#line 40 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../optics/Arm.comp"
 {
   /* A bit ugly; hard-coded dimensions. */
   
@@ -9127,7 +12183,7 @@ MCNUM minutes = mccorigin_minutes;
   line(0,0,0,0,0.2,0);
   line(0,0,0,0,0,0.2);
 }
-#line 9125 "./test.c"
+#line 12178 "./reverse_test.c"
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -9159,7 +12215,7 @@ MCNUM lambda0 = mccsource_div_lambda0;
 MCNUM dlambda = mccsource_div_dlambda;
 MCNUM gauss = mccsource_div_gauss;
 MCNUM flux = mccsource_div_flux;
-#line 167 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 167 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 {
   
   multiline(5, -xwidth/2.0, -yheight/2.0, 0.0,
@@ -9174,7 +12230,7 @@ MCNUM flux = mccsource_div_flux;
     dashed_line(0,0,0, -focus_xw/2, focus_yh/2,dist, 4);
   }
 }
-#line 9172 "./test.c"
+#line 12225 "./reverse_test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -9190,26 +12246,181 @@ MCNUM flux = mccsource_div_flux;
 #undef mccompcurtype
 #undef mccompcurindex
 
+  /* MCDISPLAY code for component 'slit'. */
+  SIG_MESSAGE("slit (McDisplay)");
+  printf("MCDISPLAY: component %s\n", "slit");
+#define mccompcurname  slit
+#define mccompcurtype  Slit
+#define mccompcurindex 4
+{   /* Declarations of slit=Slit() SETTING parameters. */
+MCNUM xmin = mccslit_xmin;
+MCNUM xmax = mccslit_xmax;
+MCNUM ymin = mccslit_ymin;
+MCNUM ymax = mccslit_ymax;
+MCNUM radius = mccslit_radius;
+MCNUM xwidth = mccslit_xwidth;
+MCNUM yheight = mccslit_yheight;
+#line 83 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../optics/Slit.comp"
+{
+  
+  if (radius == 0) {
+    double xw, yh;
+    xw = (xmax - xmin)/2.0;
+    yh = (ymax - ymin)/2.0;
+    multiline(3, xmin-xw, (double)ymax, 0.0,
+              (double)xmin, (double)ymax, 0.0,
+              (double)xmin, ymax+yh, 0.0);
+    multiline(3, xmax+xw, (double)ymax, 0.0,
+              (double)xmax, (double)ymax, 0.0,
+              (double)xmax, ymax+yh, 0.0);
+    multiline(3, xmin-xw, (double)ymin, 0.0,
+              (double)xmin, (double)ymin, 0.0,
+              (double)xmin, ymin-yh, 0.0);
+    multiline(3, xmax+xw, (double)ymin, 0.0,
+              (double)xmax, (double)ymin, 0.0,
+              (double)xmax, ymin-yh, 0.0);
+  } else {
+    circle("xy",0,0,0,radius);
+  }
+}
+#line 12278 "./reverse_test.c"
+}   /* End of slit=Slit() SETTING parameter declarations. */
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+  /* MCDISPLAY code for component 'psd_before_optic'. */
+  SIG_MESSAGE("psd_before_optic (McDisplay)");
+  printf("MCDISPLAY: component %s\n", "psd_before_optic");
+#define mccompcurname  psd_before_optic
+#define mccompcurtype  PSD_monitor
+#define mccompcurindex 5
+#define PSD_N mccpsd_before_optic_PSD_N
+#define PSD_p mccpsd_before_optic_PSD_p
+#define PSD_p2 mccpsd_before_optic_PSD_p2
+{   /* Declarations of psd_before_optic=PSD_monitor() SETTING parameters. */
+int nx = mccpsd_before_optic_nx;
+int ny = mccpsd_before_optic_ny;
+char* filename = mccpsd_before_optic_filename;
+MCNUM xmin = mccpsd_before_optic_xmin;
+MCNUM xmax = mccpsd_before_optic_xmax;
+MCNUM ymin = mccpsd_before_optic_ymin;
+MCNUM ymax = mccpsd_before_optic_ymax;
+MCNUM xwidth = mccpsd_before_optic_xwidth;
+MCNUM yheight = mccpsd_before_optic_yheight;
+MCNUM restore_neutron = mccpsd_before_optic_restore_neutron;
+#line 129 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+{
+  multiline(5,
+    (double)xmin, (double)ymin, 0.0,
+    (double)xmax, (double)ymin, 0.0,
+    (double)xmax, (double)ymax, 0.0,
+    (double)xmin, (double)ymax, 0.0,
+    (double)xmin, (double)ymin, 0.0);
+}
+#line 12313 "./reverse_test.c"
+}   /* End of psd_before_optic=PSD_monitor() SETTING parameter declarations. */
+#undef PSD_p2
+#undef PSD_p
+#undef PSD_N
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
+  /* MCDISPLAY code for component 'flat_ellipse_horizontal'. */
+  SIG_MESSAGE("flat_ellipse_horizontal (McDisplay)");
+  printf("MCDISPLAY: component %s\n", "flat_ellipse_horizontal");
+#define mccompcurname  flat_ellipse_horizontal
+#define mccompcurtype  FlatEllipse_finite_mirror
+#define mccompcurindex 6
+#define reflect mccflat_ellipse_horizontal_reflect
+#define s mccflat_ellipse_horizontal_s
+#define pTable mccflat_ellipse_horizontal_pTable
+#define R0 mccflat_ellipse_horizontal_R0
+#define Qc mccflat_ellipse_horizontal_Qc
+#define W mccflat_ellipse_horizontal_W
+#define alpha mccflat_ellipse_horizontal_alpha
+#define transmit mccflat_ellipse_horizontal_transmit
+{   /* Declarations of flat_ellipse_horizontal=FlatEllipse_finite_mirror() SETTING parameters. */
+MCNUM sourceDist = mccflat_ellipse_horizontal_sourceDist;
+MCNUM LStart = mccflat_ellipse_horizontal_LStart;
+MCNUM LEnd = mccflat_ellipse_horizontal_LEnd;
+MCNUM lStart = mccflat_ellipse_horizontal_lStart;
+MCNUM lEnd = mccflat_ellipse_horizontal_lEnd;
+MCNUM r_0 = mccflat_ellipse_horizontal_r_0;
+MCNUM nummirror = mccflat_ellipse_horizontal_nummirror;
+MCNUM mf = mccflat_ellipse_horizontal_mf;
+MCNUM mb = mccflat_ellipse_horizontal_mb;
+MCNUM mirror_width = mccflat_ellipse_horizontal_mirror_width;
+MCNUM mirror_sidelength = mccflat_ellipse_horizontal_mirror_sidelength;
+MCNUM doubleReflections = mccflat_ellipse_horizontal_doubleReflections;
+#line 234 "FlatEllipse_finite_mirror.comp"
+{
+    //Enlarge xy-plane when mcdisplay is ran with --zoom
+	magnify("xy");
+
+	//Draw xy-axis contour for Conic Surfaces
+	int i;
+    for (i = 0; i < s.num_c; i++) {
+        double step = (s.c[i].ze-s.c[i].zs)/100;
+        double cz;
+	    for (cz = s.c[i].zs+step; cz <= s.c[i].ze; cz+= step) {
+            double rp = rConic(cz-step,s.c[i]);
+            double rc = rConic(cz, s.c[i]);
+
+            line(0,rp,cz-step,0,rc,cz);
+            line(0,-rp,cz-step,0,-rc,cz);
+
+            line(rp,0,cz-step,rc,0,cz);
+            line(-rp,0,cz-step,-rc,0,cz);
+        }
+    }
+
+    //Draw xy-axis cross hairs for Disks
+    for (i = 0; i < s.num_di; i++) {
+        line(s.di[i].r0, 0, s.di[i].z0, s.di[i].r1, 0, s.di[i].z0);
+        line(-s.di[i].r0, 0, s.di[i].z0, -s.di[i].r1, 0, s.di[i].z0);
+        line(0, s.di[i].r0, s.di[i].z0, 0, s.di[i].r1,s.di[i].z0);
+        line(0, -s.di[i].r0, s.di[i].z0, 0, -s.di[i].r1,s.di[i].z0);
+    }
+
+}
+#line 12380 "./reverse_test.c"
+}   /* End of flat_ellipse_horizontal=FlatEllipse_finite_mirror() SETTING parameter declarations. */
+#undef transmit
+#undef alpha
+#undef W
+#undef Qc
+#undef R0
+#undef pTable
+#undef s
+#undef reflect
+#undef mccompcurname
+#undef mccompcurtype
+#undef mccompcurindex
+
   /* MCDISPLAY code for component 'logspir'. */
   SIG_MESSAGE("logspir (McDisplay)");
   printf("MCDISPLAY: component %s\n", "logspir");
 #define mccompcurname  logspir
 #define mccompcurtype  LogSpiral
-#define mccompcurindex 4
+#define mccompcurindex 7
 {   /* Declarations of logspir=LogSpiral() SETTING parameters. */
 MCNUM zstart = mcclogspir_zstart;
 MCNUM zend = mcclogspir_zend;
 MCNUM psi = mcclogspir_psi;
+MCNUM phi_rot = mcclogspir_phi_rot;
 MCNUM precision = mcclogspir_precision;
 MCNUM max_iterations = mcclogspir_max_iterations;
+MCNUM mValue = mcclogspir_mValue;
 MCNUM branches = mcclogspir_branches;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 406 "LogSpiral.comp"
+#line 464 "LogSpiral.comp"
 {
 
 
 }
-#line 9207 "./test.c"
+#line 12415 "./reverse_test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -9220,7 +12431,7 @@ MCNUM placeholder = mcclogspir_placeholder;
   printf("MCDISPLAY: component %s\n", "psd_monitor");
 #define mccompcurname  psd_monitor
 #define mccompcurtype  PSD_monitor
-#define mccompcurindex 5
+#define mccompcurindex 8
 #define PSD_N mccpsd_monitor_PSD_N
 #define PSD_p mccpsd_monitor_PSD_p
 #define PSD_p2 mccpsd_monitor_PSD_p2
@@ -9235,7 +12446,7 @@ MCNUM ymax = mccpsd_monitor_ymax;
 MCNUM xwidth = mccpsd_monitor_xwidth;
 MCNUM yheight = mccpsd_monitor_yheight;
 MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
-#line 129 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 129 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
 {
   multiline(5,
     (double)xmin, (double)ymin, 0.0,
@@ -9244,7 +12455,7 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
     (double)xmin, (double)ymax, 0.0,
     (double)xmin, (double)ymin, 0.0);
 }
-#line 9242 "./test.c"
+#line 12450 "./reverse_test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -9264,4 +12475,4 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
 #undef circle
 #undef cylinder
 #undef sphere
-/* end of generated C code ./test.c */
+/* end of generated C code ./reverse_test.c */
