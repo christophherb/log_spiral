@@ -5,8 +5,8 @@ plt.style.use("/home/cherb/LRZSync/Doktorarbeit/Vorlagen_Verschiedenes/stylelibs
 from random import normalvariate
 p=1
 if p:
-    log = LogSpir(0.15, 0.3, 1.55, 6, precision=1e-8, phi_rot=0)
-    log.m = 5
+    log = LogSpir(0.15, 0.3, 1.55, 6, precision=1e-8, phi_rot=0.0187607737362*180/3.1415*0.55)
+    log.m = 100
     print(log.theta_end)
     fig, ax = plt.subplots(1, figsize=(7, 7))
     v0 = 660
