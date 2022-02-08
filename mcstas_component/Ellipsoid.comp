@@ -1,0 +1,212 @@
+/*******************************************************************************
+*
+* Component: TODO
+*
+* %I
+* Written by: Christoph Herb
+* Version: 0.1
+* Origin: TODO
+* Release: TODO
+* Date: TODO
+*
+* %D
+* TODO
+*
+* %P
+* sourceDist: [m]   Distance used for calculating the spacing of the mirrors
+* LStart:     [m]   Left focal point
+* LEnd:       [m]   Right focal point
+* lStart:     [m]   z-Value of the mirror start
+* lEnd:       [m]   z-Value of the mirror end
+* max_small_half_axis: [m] small half axis of the outermost mirror
+* nummirror:  [1]   number of mirrors 
+* doubleReflections: [1] binary value determining whether the mirror backside is reflective
+* Input parameters:
+* TODO
+*
+* %E
+*
+*******************************************************************************/
+
+DEFINE COMPONENT FlatEllipse
+DEFINITION PARAMETERS(string reflect="supermirror_m3.rfl")
+SETTING PARAMETERS (
+    sourceDist = 0,    
+    LStart=0.6,
+    LEnd  = 0.6,
+    lStart= 0.,
+    lEnd  = 0.,
+    max_b = 0.02,
+    nummirror= 9,
+    mirror_width = 0,
+    m=4,
+    doubleReflections = 0
+)
+OUTPUT PARAMETERS(s, pTable, R0, Qc, W, alpha, transmit)
+
+
+SHARE
+%{
+    %include "conic.h"
+    %include "calcellipsebs.h"
+    //%include "w1_general.h"
+    //%include "read_table-lib"
+%}
+
+DECLARE
+%{
+    //Scene where all geometry is added to
+    Scene s;
+
+    //Variables for Reflectivity from McStas Tables
+    //t_Table pTable;
+    double R0 = 0.99;
+    double Qc = 0.021;
+    double W = 0.003;
+    double alpha = 6.07;
+    double transmit = 0;  
+
+    //Function to handle Conic-Neutron collisions with reflectivity from McStas Tables
+    void traceNeutronConicWithTables(Particle* p, ConicSurf c);
+%}
+
+INITIALIZE
+%{
+    if (sourceDist == 0){
+        sourceDist = sqrt(LStart*LStart);
+    }
+    //Load Reflectivity Data File
+    /*if (reflect && strlen(reflect)) {
+        if (Table_Read(&pTable, reflect, 1) <= 0)
+            exit(fprintf(stderr, "Can not read file: %s\n", reflect));
+    }
+
+    //Custom function for tracing neutrons using table data for reflectivity
+    void traceNeutronConicWithTables(Particle* pa, ConicSurf c) {
+        double tl = getTimeOfFirstCollisionConic(*pa, c);
+        if (tl < 0)
+            return;
+        else {
+            //Move Particle to Surface Edge
+            moveParticleT(tl,pa);
+
+            if (c.m==0) {
+                absorbParticle(pa);
+                return;
+            }
+
+            //Handle Reflectivity 
+            Vec n = getNormConic(getParticlePos(*pa),c);
+            double vdotn = dotVec(n,getParticleVel(*pa));
+
+            double q = fabs(2*vdotn*V2Q);
+            double B;
+            if (reflect && strlen(reflect))
+                B=Table_Value(pTable, q, 1);  
+            else {
+                B = R0;     
+                if (q > Qc) {
+                    double arg = (q-c.m*Qc)/W;  
+                    if(arg < 10) 
+                        B *= .5*(1-tanh(arg))*(1-alpha*(q-Qc)); 
+                    else 
+                        B=0;
+                }
+            }
+            if (B < 0)
+                B=0;
+            else if (B > 1)
+                B=1;
+            if (!transmit) {                                    
+                if (!B) absorbParticle(pa);
+                pa->w *= B;
+                reflectParticle(n,pa);
+            } else {
+                if (B == 0 || rand01() >= B) { /*unreflected*/ /*}
+                else { reflectParticle(n,pa); }
+            }
+        }
+    }
+    */
+    //Make new scene
+    s = makeScene();
+    double *bs = getellipsebs(nummirror,max_small_half_axis,sourceDist,lStart,lEnd);
+    
+    //Set Scene to use custom trace function for conic
+    //s.traceNeutronConic = traceNeutronConicWithTables;
+    
+    //Add Geometry Here
+    Point p1;
+    for (int i = 0; i < nummirror; i++) {
+		    p1 = makePoint(0,bs[i],0);
+			//addEllipsoid(-L,L,p1, -l,+l, 40,&s);
+            addFlatEllipse(LStart,LEnd,bs[i],p1,lStart,lEnd,-0.1,0.1,m,doubleReflections,&s); //Translation symmetry along y-direction
+		    printf("b[%d] = %f\n",i,bs[i]);
+    }
+    
+    //Point p1 = makePoint(0,small_half_axis,0);
+	//addEllipsoid(-L, L,p1, -l,+l, 40,&s);
+%}                            
+
+TRACE
+%{
+    Particle pa = makeParticle(x,y,z,vx,vy,vz, t, sx, sy, sz, p);
+    traceSingleNeutron(&pa,s);
+
+    //Communicate particle state to McStas
+    x = pa._x;
+    y = pa._y;
+    z = pa._z;
+    vx = pa._vx;
+    vy = pa._vy;
+    vz = pa._vz;
+    t = pa._t; 
+    sx = pa._sx;
+    sy = pa._sy;
+    sz = pa._sz;
+    p = pa.w;
+    
+    if (pa.absorb)
+        ABSORB;
+
+    SCATTER;
+%}
+
+FINALLY %{
+    //Mainly Writes Inline Detector Data
+    finishSimulation(&s);
+%}
+
+MCDISPLAY
+%{
+    //Enlarge xy-plane when mcdisplay is ran with --zoom
+	magnify("xy");
+
+	//Draw xy-axis contour for Conic Surfaces
+	int i;
+    for (i = 0; i < s.num_c; i++) {
+        double step = (s.c[i].ze-s.c[i].zs)/100;
+        double cz;
+	    for (cz = s.c[i].zs+step; cz <= s.c[i].ze; cz+= step) { 
+            double rp = rConic(cz-step,s.c[i]);
+            double rc = rConic(cz, s.c[i]);
+
+            line(0,rp,cz-step,0,rc,cz);
+            line(0,-rp,cz-step,0,-rc,cz);
+		    
+            line(rp,0,cz-step,rc,0,cz);
+            line(-rp,0,cz-step,-rc,0,cz);
+        }
+    }
+
+    //Draw xy-axis cross hairs for Disks
+    for (i = 0; i < s.num_di; i++) {
+        line(s.di[i].r0, 0, s.di[i].z0, s.di[i].r1, 0, s.di[i].z0);
+        line(-s.di[i].r0, 0, s.di[i].z0, -s.di[i].r1, 0, s.di[i].z0);
+        line(0, s.di[i].r0, s.di[i].z0, 0, s.di[i].r1,s.di[i].z0);
+        line(0, -s.di[i].r0, s.di[i].z0, 0, -s.di[i].r1,s.di[i].z0);
+    }
+         
+%}
+	
+END
