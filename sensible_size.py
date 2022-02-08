@@ -6,14 +6,20 @@ from random import normalvariate
 p=1
 if p:
     log = LogSpir(0.15, 0.3, 1.55, 6, precision=1e-8)
+    log.m = 6
     print(log.theta_end)
     fig, ax = plt.subplots(1, figsize=(7, 7))
-
+    v0 = 660
     theta_end = log.theta_end
-    theta_range = np.linspace(0, theta_end, 10001)
+    theta_range = np.linspace(0, theta_end, 1001)
     z, x = log.return_cart_coords(theta_range)
     for slope in np.linspace(0, 0.0324, 501):
-        neutron = Neutron(0.7, max([0, slope*0.7+normalvariate(0, 0.0001)]), -1, min([0, normalvariate(-slope, slope/50)]))
+        z0 = 0.7
+        vz = -1
+        vx = min([0, normalvariate(-slope, slope/50)])
+        x0 = max([0, slope*0.7+normalvariate(0, 0.0001)])
+        vz, vx = v0*vz/(vx**2+vz**2)**0.5, v0*vx/(vx**2+vz**2)**0.5
+        neutron = Neutron(z0, x0, vz, vx)
         path, neutron = log.propagate_neutron(neutron)
         z_path, x_path = zip(*[k[:2] for k in path])
         #ax.set_aspect('equal')
@@ -39,6 +45,7 @@ if p:
     ax.set_xlabel("$z$ (m)")
     ax.set_ylabel("$x$ (m)")
     ax.set_title(r"$r = z_s \exp(\cotan(\psi)\theta)$  mit $z_s = {}$ m, $z_e = {}$ m, $\psi={}^\circ$".format(log.zstart, log.zend, log.psi))
+    ax.legend()
     fig.savefig('/home/cherb/Downloads/sensible_size_divergence.pdf', bbox_inches='tight')
     plt.show()
 
