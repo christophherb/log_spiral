@@ -43,6 +43,7 @@ SETTING PARAMETERS (
 	max_iterations=10,
 	mValue = 4,
 	branches = 2,
+	doublesided = 0,
     placeholder=0
 )
 
@@ -52,11 +53,20 @@ OUTPUT PARAMETERS (
 SHARE
 %{
 %include "ref-lib"
+#define NUMBERMIRROR 20 
 double dt; // time to propagate the neutron onto the mirror surface
 double interaction; //if no interaction can take place neutrons are propagated onto the next component
 	///////////////////////////////////////////////////////////////////////////
 /////////////// Some Structures
 ///////////////////////////////////////////////////////////////////////////
+//saves the orientation of the log spiral branch with respect to the original
+typedef struct orientation{
+	double phi_rot;
+	int inverted;
+} orientation;
+
+
+
 typedef struct LogSpir{
     double zstart;
     double zend;
@@ -69,9 +79,18 @@ typedef struct LogSpir{
 	double mValue;
     double x_end;
 	double mindistance;
+	orientation orientations[NUMBERMIRROR];//saves the orientations of the mirrors
 	int branches;
+	int doublesided;
 } LogSpir;//logspiral will be our surface to reflect from; nice
 
+
+/*! \brief typedef containing the relevant neutron properties
+
+@param q perp impulse component
+@param m Value of the mirror
+@return Probability of reflection from 0 to 1
+*/
 typedef struct part_log{
 	double z;
 	double y;
@@ -89,6 +108,7 @@ typedef struct BranchTime{
 	double phi_rot;//rotation angle of the branch
 	double t;//time of interaction
 	double theta_int;//angle under which the interaction takes place
+	int inverted;
 } BranchTime;//Structure for a 2D part_log
 
 double returnz(part_log n){
@@ -171,12 +191,25 @@ double calcSupermirrorReflectivityLog(double q, double m){
 void rotate_vector(part_log *neutron, part_log initneut, double theta_rot){//rotating the initneut by thetarot and saving the result in neutron
 	double sint = sin(theta_rot);
 	double cost = cos(theta_rot);
-	neutron->z = cost*initneut.z - sint*initneut.x;
-    neutron->x = sint*initneut.z + cost*initneut.x;
-    neutron->vz= cost*initneut.vz - sint*initneut.vx;
-    neutron->vx= sint*initneut.vz + cost*initneut.vx;
+	double new_z  = cost*initneut.z - sint*initneut.x;	
+	double new_x  = sint*initneut.z + cost*initneut.x;
+	double new_vz = cost*initneut.vz - sint*initneut.vx;	
+	double new_vx = sint*initneut.vz + cost*initneut.vx;
+	neutron->z = new_z;
+	neutron->x = new_x;
+	neutron->vz= new_vz;
+    neutron->vx= new_vx;
+
 }
 
+void invert_vector(part_log *neutron, part_log initneut, double invert){
+	neutron->z = initneut.z;
+	neutron->x = initneut.x*invert;
+	neutron->vz = initneut.vz;
+	neutron->vx = initneut.vx*invert;
+	neutron->vy = initneut.vy;
+	neutron->y = initneut.y;
+}
 
 /*! \brief Function to create a Neutron part_log
 @param *neutron pointer to neutron, which is initialized
@@ -302,7 +335,7 @@ double return_precise_theta_end(LogSpir logspir, int max_iterations){
 @param max_iterations (1) number of the maximum iterations for Newton-Raphson
 @param branches number of spiral branches
 */
-void LogSpirinit(LogSpir *logspir, double zstart, double zend, double psi, double phi_rot, double mValue, double precision, double max_iterations, int branches){
+void LogSpirinit(LogSpir *logspir, double zstart, double zend, double psi, double phi_rot, double mValue, double precision, double max_iterations, int branches, int doublesided){
 	logspir->zstart = zstart;
 	logspir->zend = zend;
 	logspir->psi = psi;
@@ -311,8 +344,14 @@ void LogSpirinit(LogSpir *logspir, double zstart, double zend, double psi, doubl
 	logspir->k = 1/tan(logspir->psi_rad);
 	logspir->precision = precision;
 	logspir->branches = branches;
+	logspir->doublesided = doublesided;
 	logspir->theta_end = return_precise_theta_end(*logspir, max_iterations);
 	logspir->phi_rot = phi_rot > 0 ? phi_rot : logspir->theta_end; //the rotation of the spirals is by default theta _end
+	for (int kk = 0; kk<((doublesided+1)*branches); kk++){//to be used later on
+		logspir->orientations[kk].phi_rot = kk< logspir->branches ? kk*logspir->phi_rot : (kk-logspir->branches)*logspir->phi_rot;
+		logspir->orientations[kk].inverted = kk< logspir->branches ? 1 : -1;
+		printf("the orientation of the branches phi_rot %f, inverted %d\n", logspir->orientations[kk].phi_rot, logspir->orientations[kk].inverted);
+	}
 	logspir->mindistance = 2*sin(logspir->theta_end/2)*zstart;
 }
 
@@ -384,35 +423,32 @@ float return_intersection_time(LogSpir logspir, double z0, double x0, double vz,
 */
 BranchTime return_first_interaction(LogSpir logspir, part_log init_neut){
 	double t;
-	double min_time = -1;
 	double theta_rot;
-	double theta_rot_min = -1;
 	double theta_int;
-	double theta_int_min = -1;
-
-	BranchTime brt;
+	int inverted;
+	BranchTime brt;//stores the first interaction and saves the according branch
 	part_log rotneut;
-	for (int kk=0; kk<logspir.branches; kk++){//instead of rotating the device we rotate neutron to calculate the intersection time--> lowest wins
-		theta_rot = -kk*logspir.phi_rot;
-		//rotate the rotneut
-		rotate_vector(&rotneut, init_neut, theta_rot);
+	brt.t = -1.0;
+	for (int kk=0; kk<((logspir.doublesided+1)*logspir.branches); kk++){//instead of rotating the device we rotate neutron to calculate the intersection time--> lowest wins
+		theta_rot = -logspir.orientations[kk].phi_rot;
+		inverted = logspir.orientations[kk].inverted;
+		//rotate and mirror the neutron according to the branches orientation
+		invert_vector(&rotneut, init_neut, inverted);
+		rotate_vector(&rotneut, rotneut, theta_rot);
 		theta_int = return_precise_theta_int(logspir, rotneut, 10);
 		//printf("thetaint %f vz berfore %f\n", theta_int, init_neut.vz);
 		t = return_intersection_time(logspir, rotneut.z, rotneut.x, rotneut.vz, rotneut.vx, theta_int);
 		if (t>0){
-			if (t<min_time || min_time<0){
-				min_time = t;
-				theta_rot_min = theta_rot;
-				theta_int_min = theta_int;
+			if (t<brt.t || brt.t<0){
+				brt.t = t;
+				brt.phi_rot = theta_rot;
+				brt.theta_int = theta_int;
+				brt.inverted = inverted;
 			}
 		}
 
 	}
-	brt.phi_rot = (theta_rot_min);
-	brt.theta_int = (theta_int_min);
-	brt.t = min_time;
 	return brt;
-
 }
 
 part_log return_normal_vec(LogSpir logspir, double theta){//returns the normalized normal vector to the surface
@@ -438,11 +474,13 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 	double t_prop;
 	double theta_int;
 	double phi_rot;
+	int inverted;
 	part_log n;
 	part_log n_rot;
 	t_prop = brt.t;
 	theta_int = brt.theta_int;
 	phi_rot = brt.phi_rot;
+	inverted = brt.inverted;
 	//printf("proptime %f", t_prop);
 	if (t_prop < 0){
 		return 0;
@@ -452,6 +490,7 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 		propagate_neutron(neutron, t_prop);//propagate neutron
 		n = return_normal_vec(logspir, theta_int);
 		rotate_vector(&n_rot, n, -phi_rot);//
+		invert_vector(&n_rot, n_rot, inverted);
 		reflect_neutron(n_rot, neutron, logspir.mValue);
 		return 1;
 	}
@@ -494,7 +533,7 @@ INITIALIZE
 	///////////////////////////////////////////////////////////////////////////
 	/////////////// Initialize the logarithmic spiral
 	///////////////////////////////////////////////////////////////////////////
-	LogSpirinit(logspirp, zstart, zend, psi, phi_rot, mValue, precision, max_iterations, branches);
+	LogSpirinit(logspirp, zstart, zend, psi, phi_rot, mValue, precision, max_iterations, branches, doublesided);
 
 	printf("theta_end%f", logspir.theta_end);
 %}
