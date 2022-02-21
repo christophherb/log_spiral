@@ -17,7 +17,7 @@
 *
 * %D
 *
-* The origin of the component coincides with the origin of the log spiral coordinate system. The spiral starts at zstart and is defined by the angle psi, which indicates
+* The origin of the component coincides with the origin of the log spiral coordinate system. The spiral starts at zmin and is defined by the angle psi, which indicates
 * under which angle rays from the origin hit the mirror.
 *
 * %P
@@ -35,11 +35,13 @@
 DEFINE COMPONENT LogSpiral
 DEFINITION PARAMETERS()
 SETTING PARAMETERS (
-    zstart=1,
-    zend=3,
+    zmin=1,
+    zmax=3,
+	ymin=-1,
+	ymax= 1,
     psi=5,
 	phi_rot=0,
-    precision=1e-8,
+    precision=1e-7,
 	max_iterations=10,
 	mValue = 4,
 	branches = 2,
@@ -68,8 +70,10 @@ typedef struct orientation{
 
 
 typedef struct LogSpir{
-    double zstart;
-    double zend;
+    double zmin;
+    double zmax;
+	double ymin;
+	double ymax;
     double psi;
     double psi_rad;//=psi*DEG2RAD;
     double k;//=arctan(psi_rad);
@@ -105,10 +109,9 @@ double getRandomLog() {
 }
 
 typedef struct BranchTime{
-	double phi_rot;//rotation angle of the branch
+	orientation branch;//rotation angle of the branch
 	double t;//time of interaction
 	double theta_int;//angle under which the interaction takes place
-	int inverted;
 } BranchTime;//Structure for a 2D part_log
 
 double returnz(part_log n){
@@ -263,7 +266,7 @@ void reflect_neutron(part_log normal, part_log *neutron, double mValue){
 @return function of which to find a root for 
 */
 double newton_theta_end(LogSpir logspir, double theta){
-	return cos(theta)*logspir.zstart*exp(logspir.k*theta)-logspir.zend;
+	return cos(theta)*logspir.zmin*exp(logspir.k*theta)-logspir.zmax;
 }
 /*! \brief Function for Newton Raphson
 @param logspir Logarithmic spiral
@@ -271,7 +274,7 @@ double newton_theta_end(LogSpir logspir, double theta){
 @return derivative of function
 */
 double newton_theta_end_derivative(LogSpir logspir, double theta){
-	return logspir.zstart*exp(logspir.k*theta)*(cos(theta)*logspir.k-sin(theta));
+	return logspir.zmin*exp(logspir.k*theta)*(cos(theta)*logspir.k-sin(theta));
 }
 
 /*! \brief Function returns r = z_s*exp(theta*arctan(psi))
@@ -280,8 +283,8 @@ double newton_theta_end_derivative(LogSpir logspir, double theta){
 @param theta angle under which the point is seen
 @return r coordinate
 */
-double return_r(double theta, double k, double zstart){
-    return zstart*exp(k*theta);
+double return_r(double theta, double k, double zmin){
+    return zmin*exp(k*theta);
 };
 
 /*! \brief Function returns carthesian Coordinates of a point on the logspiral
@@ -291,7 +294,7 @@ double return_r(double theta, double k, double zstart){
 */
 part_log return_cart_coordsspiral(LogSpir logspir, double theta){
 	struct part_log n;
-	double r = return_r(theta, logspir.k, logspir.zstart);
+	double r = return_r(theta, logspir.k, logspir.zmin);
 	n.z = cos(theta)*r;
 	n.x = sin(theta)*r;
 	return n;
@@ -302,7 +305,7 @@ part_log return_cart_coordsspiral(LogSpir logspir, double theta){
 @return approximation of theta_end
 */
 double return_approx_theta_end(LogSpir logspir){
-    return log(logspir.zend/logspir.zstart)/logspir.k;
+    return log(logspir.zmax/logspir.zmin)/logspir.k;
 };
 
 /*! \brief Function returns the precise angle of the end of the spiral by Newton-Raphson
@@ -326,8 +329,10 @@ double return_precise_theta_end(LogSpir logspir, int max_iterations){
 
 /*! \brief Function initializes a Logarithmic Spiral with all information necessary to calculate reflection
 @param logspir pointer of LogSpir object which to initialize
-@param zstart z-coordinate (m) at which the spiral starts
-@param zend z-coordinate (m) at which the spiral ends
+@param zmin z-coordinate (m) at which the spiral starts
+@param zmax z-coordinate (m) at which the spiral ends
+@param ymin minimum y-coordinate (m) at which the mirror is realized
+@param ymax maximum y-coordinate (m) at which the mirror is realized
 @param psi angle (deg) under which the spiral is hit by neutrons originating from the origin
 @param phi_rot (rad) angle under which the individual spiral branches are rotated by
 @param mValue m-value of the reflecting surfaces
@@ -335,9 +340,11 @@ double return_precise_theta_end(LogSpir logspir, int max_iterations){
 @param max_iterations (1) number of the maximum iterations for Newton-Raphson
 @param branches number of spiral branches
 */
-void LogSpirinit(LogSpir *logspir, double zstart, double zend, double psi, double phi_rot, double mValue, double precision, double max_iterations, int branches, int doublesided){
-	logspir->zstart = zstart;
-	logspir->zend = zend;
+void LogSpirinit(LogSpir *logspir, double zmin, double zmax, double ymin, double ymax, double psi, double phi_rot, double mValue, double precision, double max_iterations, int branches, int doublesided){
+	logspir->zmin = zmin;
+	logspir->zmax = zmax;
+	logspir->ymin = ymin;
+	logspir->ymax = ymax;
 	logspir->psi = psi;
 	logspir->psi_rad = psi*DEG2RAD;
 	logspir->mValue = mValue;
@@ -352,14 +359,33 @@ void LogSpirinit(LogSpir *logspir, double zstart, double zend, double psi, doubl
 		logspir->orientations[kk].inverted = kk< logspir->branches ? 1 : -1;
 		printf("the orientation of the branches phi_rot %f, inverted %d\n", logspir->orientations[kk].phi_rot, logspir->orientations[kk].inverted);
 	}
-	logspir->mindistance = 2*sin(logspir->theta_end/2)*zstart;
+	logspir->mindistance = 2*sin(logspir->theta_end/2)*zmin;
 }
 
 /*! \brief Function returns the approximate angle of intersection spiral to be refined by Newton-Raphson
 @param logspir Logarithmic spiral
 */
-double return_approx_theta_int(LogSpir logspir){//approximating by intersection with line seems comp expensive + if the intersection is far away
-	return logspir.theta_end/2;//good enough as the function for which to find the root is very well behaved
+double return_approx_theta_int(LogSpir logspir, part_log neutron){//approximating by intersection with line seems comp expensive + if the intersection is far away
+	part_log *mirror_approx;
+	double denom;
+	double lam;
+	double z_int;
+	double x_int;
+	double m = logspir.zmax*tan(logspir.theta_end)/(logspir.zmax-logspir.zmin);
+	denom = neutron.vx-neutron.vz*m;
+	if (denom==0){
+		return logspir.theta_end/2; // neutron parallel to the spiral arm
+	}else{
+		lam = ((-logspir.zmin+neutron.z)*m-neutron.x)/denom;//approximate mirror as a line calculate the intersection and determine the angle
+		z_int = neutron.z+neutron.vz*lam;
+		//printf("z intersection %f x intersection %f lam %f theta_end %f\n", z_int, x_int, lam, logspir.theta_end);
+		if (z_int >= logspir.zmin && z_int <= logspir.zmax){
+				x_int = neutron.x+neutron.vx*lam;
+				//printf("init theta %f theta_end/2 %f\n", atan((x_int)/(z_int)), logspir.theta_end/2);
+				return atan((x_int)/(z_int));
+		}
+	}
+	return -10;
 }
 
 
@@ -374,42 +400,50 @@ double return_precise_theta_int(LogSpir logspir, part_log n, double max_iteratio
 	double m = n.vx/n.vz;
 	double x0 = n.x-n.z/n.vz*n.vx;
 	double f(double theta){//function which to minimize via Newton-Raphson
-		return logspir.zstart*exp(logspir.k*theta)*(sin(theta)-m*cos(theta))-x0;
+		return logspir.zmin*exp(logspir.k*theta)*(sin(theta)-m*cos(theta))-x0;
 	}
 	double f_derivative(double theta){//derivative of the function for Newton-Raphson
-		return logspir.zstart*exp(logspir.k*theta)*(cos(theta)*(1-logspir.k*m)+ sin(theta)*(logspir.k+m));
+		return logspir.zmin*exp(logspir.k*theta)*(cos(theta)*(1-logspir.k*m)+ sin(theta)*(logspir.k+m));
 	}
-	theta_0 = return_approx_theta_int(logspir);
+	theta_0 = return_approx_theta_int(logspir, n);
+	if (theta_0 < -9){
+		return -10;
+	}
 	for (int ii; ii<max_iterations; ii++ ){
 		theta_n = theta_0-f(theta_0)/f_derivative(theta_0);
+		if (ii > 1 && (theta_n < 0 || theta_n > logspir.theta_end)){
+			return -10;
+		}
 		if (fabs(theta_n-theta_0)<logspir.precision){
 			if ((0<theta_n)&&(theta_n<logspir.theta_end)){//if the intersection theta is outside the bounds of the spiral--> no interaction
 				return theta_n;
 			}
+			//printf("no htis\n");
 			return -10;
 		}
 		theta_0 = theta_n;
 	}
+	//printf("exhausted \n");
 	return -10;
 }
 
-/*! \brief Function returns the precise angle of intersection by Newton-Raphson
+/*! \brief Function returns the time until interaction, only if interaction is possible, i.e., neutron hits mirror (ycoord)
 @param logspir Logarithmic spiral
-@param z0 (m) 
-@param x0 (m)
-@param vz (m/s)
-@param vx (m/s)
+@param neutron intersecting neutron
 @param theta_int angle of intersection
-@return time (s) if the intersection takes place, -1 else
+@return time (s) if the intersection takes place, -10 else
 */
-float return_intersection_time(LogSpir logspir, double z0, double x0, double vz, double vx, double theta_int){
+float return_intersection_time(LogSpir logspir, part_log neutron, double theta_int){
 	part_log int_coord;
 	double t;
+	double y;
 	if (theta_int > 0){
 		int_coord = return_cart_coordsspiral(logspir, theta_int);//cart coords of the interaction
 		////printf("z of spiral %f z0 = %f\n", int_coord.z, z0);
-		t = (int_coord.z-z0)/vz;
-		if (t*t > 0.25*logspir.mindistance*logspir.mindistance/(vz*vz+vx*vx)){//minimum distance between two mirrors (sensible distance, smaller makes no sense)
+		t = (int_coord.z-neutron.z)/neutron.vz;
+		y = neutron.y+neutron.vy*t;
+		if (t*t > 0.25*logspir.mindistance*logspir.mindistance/(neutron.vz*neutron.vz+neutron.vx*neutron.vx) && 
+		y >= logspir.ymin && y <= logspir.ymax){//minimum distance between two mirrors (sensible distance, smaller makes no sense)
 			return t;
 		}
 	}
@@ -429,7 +463,7 @@ BranchTime return_first_interaction(LogSpir logspir, part_log init_neut){
 	BranchTime brt;//stores the first interaction and saves the according branch
 	part_log rotneut;
 	brt.t = -1.0;
-	for (int kk=0; kk<((logspir.doublesided+1)*logspir.branches); kk++){//instead of rotating the device we rotate neutron to calculate the intersection time--> lowest wins
+	for (int kk=0; kk<((logspir.doublesided+1)*logspir.branches); kk++){//go through all the orientations
 		theta_rot = -logspir.orientations[kk].phi_rot;
 		inverted = logspir.orientations[kk].inverted;
 		//rotate and mirror the neutron according to the branches orientation
@@ -437,13 +471,12 @@ BranchTime return_first_interaction(LogSpir logspir, part_log init_neut){
 		rotate_vector(&rotneut, rotneut, theta_rot);
 		theta_int = return_precise_theta_int(logspir, rotneut, 10);
 		//printf("thetaint %f vz berfore %f\n", theta_int, init_neut.vz);
-		t = return_intersection_time(logspir, rotneut.z, rotneut.x, rotneut.vz, rotneut.vx, theta_int);
+		t = return_intersection_time(logspir, rotneut, theta_int);
 		if (t>0){
 			if (t<brt.t || brt.t<0){
 				brt.t = t;
-				brt.phi_rot = theta_rot;
+				brt.branch = logspir.orientations[kk];
 				brt.theta_int = theta_int;
-				brt.inverted = inverted;
 			}
 		}
 
@@ -479,8 +512,8 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 	part_log n_rot;
 	t_prop = brt.t;
 	theta_int = brt.theta_int;
-	phi_rot = brt.phi_rot;
-	inverted = brt.inverted;
+	phi_rot =  brt.branch.phi_rot;
+	inverted = brt.branch.inverted;
 	//printf("proptime %f", t_prop);
 	if (t_prop < 0){
 		return 0;
@@ -489,7 +522,7 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 		//if the time is valid we propagate the neutron to the surface
 		propagate_neutron(neutron, t_prop);//propagate neutron
 		n = return_normal_vec(logspir, theta_int);
-		rotate_vector(&n_rot, n, -phi_rot);//
+		rotate_vector(&n_rot, n, phi_rot);//
 		invert_vector(&n_rot, n_rot, inverted);
 		reflect_neutron(n_rot, neutron, logspir.mValue);
 		return 1;
@@ -499,7 +532,7 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 
 
 //double return_time_first_interaction(LogSpir logspir, double theta_int, part_log *n){
-//	double z_int = cos(theta_int)*return_r(theta_int, logspir.k, logspir.zstart);
+//	double z_int = cos(theta_int)*return_r(theta_int, logspir.k, logspir.zmin);
 //	return z_int/n->vz;
 //}
 
@@ -533,7 +566,7 @@ INITIALIZE
 	///////////////////////////////////////////////////////////////////////////
 	/////////////// Initialize the logarithmic spiral
 	///////////////////////////////////////////////////////////////////////////
-	LogSpirinit(logspirp, zstart, zend, psi, phi_rot, mValue, precision, max_iterations, branches, doublesided);
+	LogSpirinit(logspirp, zmin, zmax, ymin, ymax, psi, phi_rot, mValue, precision, max_iterations, branches, doublesided);
 
 	printf("theta_end%f", logspir.theta_end);
 %}
