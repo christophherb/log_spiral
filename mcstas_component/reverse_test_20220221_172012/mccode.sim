@@ -1,0 +1,77 @@
+McStas simulation description file for logspir_test.
+Date:    Mon Feb 21 17:20:12 2022
+Program: McStas 2.7 - Nov. 27, 2020
+
+begin instrument: logspir_test
+  File: /home/cherb/LRZSync/Doktorarbeit/Mieze/Logarithmic_Spiral/mcstas_component/reverse_test_20220221_172012/mccode
+  Source: reverse_test.instr
+  Parameters:  source_width(double) source_divergence(double) L_source(double) dL(double) branches(double) flux(double) phi_rot(double) doublesided(double) placeholder(double)
+  Trace_enabled: yes
+  Default_main: yes
+  Embedded_runtime: yes
+end instrument
+
+begin simulation: /home/cherb/LRZSync/Doktorarbeit/Mieze/Logarithmic_Spiral/mcstas_component/reverse_test_20220221_172012
+  Format: McCode with text headers
+  URL: http://www.mccode.org
+  Creator: McStas 2.7 - Nov. 27, 2020
+  Instrument: reverse_test.instr
+  Ncount: 100
+  Trace: no
+  Gravitation: no
+  Seed: 1645487322
+  Directory: /home/cherb/LRZSync/Doktorarbeit/Mieze/Logarithmic_Spiral/mcstas_component/reverse_test_20220221_172012
+  Param: source_width=0.001
+  Param: source_divergence=3.71164
+  Param: L_source=5
+  Param: dL=2
+  Param: branches=5
+  Param: flux=1
+  Param: phi_rot=0.018761
+  Param: doublesided=1
+  Param: placeholder=0
+end simulation
+
+begin data
+  Date: Mon Feb 21 17:20:12 2022 (1645460412)
+  type: array_2d(500, 500)
+  Source: logspir_test (reverse_test.instr)
+  component: psd_before_optic
+  position: 0 0 0.615
+  title: PSD monitor
+  Ncount: 100
+  filename: beforeoptic.dat
+  statistics: X0=0.002; dX=1.1691; Y0=-0.13; dY=1.40011;
+  signal: Min=0; Max=6.78378; Mean=0.000904504;
+  values: 226.126 22.6126 100
+  xvar: X
+  yvar: Y
+  xlabel: X position [cm]
+  ylabel: Y position [cm]
+  zvar: I
+  zlabel: Signal per bin
+  xylimits: -50 50 -50 50
+  variables: I I_err N
+end data
+
+begin data
+  Date: Mon Feb 21 17:20:12 2022 (1645460412)
+  type: array_2d(500, 500)
+  Source: logspir_test (reverse_test.instr)
+  component: psd_monitor
+  position: 0 0 1.35
+  title: PSD monitor
+  Ncount: 100
+  filename: psdafterlog.dat
+  statistics: X0=0.0475309; dX=3.03545; Y0=-0.0951852; dY=1.40221;
+  signal: Min=0; Max=2.26126; Mean=0.000732648;
+  values: 183.162 20.3513 81
+  xvar: X
+  yvar: Y
+  xlabel: X position [cm]
+  ylabel: Y position [cm]
+  zvar: I
+  zlabel: Signal per bin
+  xylimits: -5 5 -5 5
+  variables: I I_err N
+end data

@@ -1,0 +1,132 @@
+/*******************************************************************************
+* Instrument: <instrument name>
+*
+* %I
+* Written by: <your name (email)>
+* Date: <current date>
+* Origin: <your institution>
+* %INSTRUMENT_SITE: Templates
+*
+* <instrument short description>
+*
+* %D
+* <instrument description>
+*
+* Example: <parameters=values>
+*
+* %P
+* <parameter1>: [<unit>] <parameter1 description>
+* ...
+*
+* %L
+* <reference/HTML link>
+*
+* %E
+*******************************************************************************/
+DEFINE INSTRUMENT logspir_test(
+    source_width = 0.001,
+    source_divergence = 3.7116398665896515,
+    L_source = 5,
+    dL = 2,
+    branches = 5,
+    flux = 1,
+    phi_rot=0,
+    doublesided=0,
+    placeholder = 0
+)
+
+DECLARE
+%{
+%}
+
+INITIALIZE
+%{
+%}
+
+TRACE
+
+COMPONENT origin = Progress_bar()
+AT (0, 0, 0) RELATIVE ABSOLUTE
+
+// insert components here (e.g. Insert -> Source -> ...)
+COMPONENT source = Arm()
+AT (0, 0, 0) RELATIVE PREVIOUS
+
+COMPONENT source_div = Source_div(
+    yheight=0.05,
+    xwidth=source_width,
+    focus_aw=source_divergence,//source_divergence,//maximum divergence horizontal0.000000001,//
+    focus_ah=0.000001,//guide_width,0.000000001,//
+    lambda0=L_source,
+    flux=1e11,
+    dlambda=dL)
+AT (0, 0, 0) RELATIVE source
+ROTATED (0, 0, 0) RELATIVE source
+
+COMPONENT slit = Slit(
+    xmin=-0.0198,//0.002,
+    xmax=0.0198,
+    ymin=-1,
+    ymax=1
+
+)
+AT (0, 0, 0.675-0.060001) RELATIVE source
+ROTATED (0, 0, 0) RELATIVE source
+
+COMPONENT psd_before_optic = PSD_monitor(
+    nx=500,
+    ny=500,
+    filename="beforeoptic.dat",
+    xwidth=1,
+    yheight=1,
+    restore_neutron=1)
+AT (0, 0, 0.675-0.06) RELATIVE source
+
+COMPONENT flat_ellipse_horizontal = FlatEllipse_finite_mirror(
+    sourceDist=-(0.675),
+    LStart=-(0.675),
+    LEnd=0.675,
+    lStart=-0.06,
+    lEnd=0.06,
+    r_0 = 0.02,//calculated such that the exit of the optic fits the guide width
+    mirror_width = 0,//0.15 mm
+    mirror_sidelength = 10,
+    nummirror = 30,
+    doubleReflections= 1,
+    mf = 4,
+    mb = 0
+)
+AT (0, 0, 0.675) RELATIVE source
+ROTATED (0, 0, 0) RELATIVE source
+
+//Group of logspirs, first to hit is first to interact
+COMPONENT logspir = LogSpiral(
+    zmin=0.15, 
+    zmax= 0.3, 
+    ymin=-0.02,
+    ymax= 0.01,
+    psi=1.55, 
+    branches=branches, 
+    phi_rot=phi_rot, 
+    mValue=100, 
+    doublesided=doublesided)
+AT (0, 0, 0.675*2) RELATIVE source
+ROTATED (0, 180, 180) RELATIVE source
+
+
+
+
+COMPONENT psd_monitor = PSD_monitor(
+    nx=500,
+    ny=500,
+    filename="psdafterlog.dat",
+    xwidth=0.1,
+    yheight=0.1,
+    restore_neutron=1)
+AT (0, 0, 2*0.675) RELATIVE source
+ROTATED (0, 0, 0) RELATIVE source
+FINALLY
+%{
+%}
+
+END
