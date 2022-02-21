@@ -5,7 +5,7 @@ plt.style.use("/home/cherb/LRZSync/Doktorarbeit/Vorlagen_Verschiedenes/stylelibs
 from random import normalvariate
 p=1
 if p:
-    log = LogSpir(0.15, 0.3, 1.55, 6, precision=1e-8, phi_rot=0.0187607737362*180/3.1415*0.55)
+    log = LogSpir(0.15, 0.3, 1.55, 6, precision=1e-8, phi_rot=0.0187607737362*180/3.1415*0.42)
     log.m = 100
     print(log.theta_end)
     fig, ax = plt.subplots(1, figsize=(7, 7))
@@ -16,8 +16,8 @@ if p:
     for slope in np.linspace(0, 0.0324, 501):
         z0 = 0.7
         vz = -1
-        vx = min([0, normalvariate(-slope, slope/50)])
-        x0 = max([0, slope*0.7+normalvariate(0, 0.0001)])
+        vx = min([0, normalvariate(-slope, 1/700)])
+        x0 = max([0, slope*0.7+normalvariate(0, 0.00007)])
         vz, vx = v0*vz/(vx**2+vz**2)**0.5, v0*vx/(vx**2+vz**2)**0.5
         neutron = Neutron(z0, x0, vz, vx)
         path, neutron = log.propagate_neutron(neutron)

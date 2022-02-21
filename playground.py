@@ -6,7 +6,7 @@ plt.style.use("/home/cherb/LRZSync/Doktorarbeit/Vorlagen_Verschiedenes/stylelibs
 #from point radially diverging
 p=1
 if p:
-    log = LogSpir(1, 3, 5, 5, precision=1e-8)
+    log = LogSpir(0.1, 0.3, 5, 5, precision=1e-8)
     print(log.theta_end)
     fig, ax = plt.subplots(1, figsize=(15,15))
 
