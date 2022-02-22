@@ -58,6 +58,7 @@ SHARE
 #define NUMBERMIRROR 20
 #define V2Q_conic 1.58825361e-3
 #define Q2V_conic 629.622368
+#define DEG2RAD 3.1415927/180
 
 double dt; // time to propagate the neutron onto the mirror surface
 double interaction; //if no interaction can take place neutrons are propagated onto the next component
@@ -70,17 +71,7 @@ double getRandomLog() {
 /////////////// Some Structures
 ///////////////////////////////////////////////////////////////////////////
 
-//! Stucture to represent the orientation of a spiral branch
-typedef struct Orientation{
-	double phi_rot;
-	int inverted;
-} Orientation;
 
-//! Structure to save all the branches
-typedef struct Scene{
-	double number_spirals;
-	LogSpir all_branches[NUMBERMIRROR];
-} Scene;
 
 //! Stucture to represent one Branch of the spiral
 typedef struct LogSpir{
@@ -92,13 +83,18 @@ typedef struct LogSpir{
     double psi_rad;//=psi*DEG2RAD;
     double k;//=arctan(psi_rad);
     double precision;
-    double theta_end;
-	double phi_rot;//the angle between the individual arms of the spiral defaults to theta_end
+    double theta_end;//rad
 	double mValue;
 	double mindistance; //minimum distace between two mirrors, useful for the minimum time 
-	Orientation orientation;//stores the orientations of the mirrors
-	int doublesided;
+	double phi_rot;//the rotation of the spiral branch
+	int inverted;//whether the spiral is reflected at the x-axis
 } LogSpir;
+
+//! Structure to save all the branches
+typedef struct SceneLog{
+	int number_spirals;
+	LogSpir all_branches[NUMBERMIRROR];
+} SceneLog;
 
 
 /*! \brief typedef containing the relevant neutron properties
@@ -117,7 +113,7 @@ typedef struct part_log{
 } part_log;//Structure for a 2D part_log
 
 typedef struct BranchTime{
-	orientation branch;//rotation angle of the branch
+	LogSpir logspir;//the logspiral branch the neutron interacts with
 	double t;//time of interaction
 	double theta_int;//angle under which the interaction takes place
 } BranchTime;//Structure for a 2D part_log
@@ -371,7 +367,7 @@ part_log return_normal_vec(LogSpir logspir, double theta){//returns the normaliz
 @param max_iterations (1) number of the maximum iterations for Newton-Raphson
 @param branches number of spiral branches
 */
-void LogSpirinit(LogSpir *logspir, double zmin, double zmax, double ymin, double ymax, double psi, double phi_rot, double mValue, double precision, double max_iterations, int branches, int doublesided){
+void LogSpirinit(LogSpir *logspir, double zmin, double zmax, double ymin, double ymax, double psi, double phi_rot, double mValue, double precision, double max_iterations, int inverted){
 	logspir->zmin = zmin;
 	logspir->zmax = zmax;
 	logspir->ymin = ymin;
@@ -381,16 +377,46 @@ void LogSpirinit(LogSpir *logspir, double zmin, double zmax, double ymin, double
 	logspir->mValue = mValue;
 	logspir->k = 1/tan(logspir->psi_rad);
 	logspir->precision = precision;
-	logspir->branches = branches;
-	logspir->doublesided = doublesided;
 	logspir->theta_end = return_precise_theta_end(*logspir, max_iterations);
-	logspir->phi_rot = phi_rot > 0 ? phi_rot : logspir->theta_end; //the rotation of the spirals is by default theta _end
-	for (int kk = 0; kk<((doublesided+1)*branches); kk++){//TODO reading orientations from a file?
-		logspir->orientations[kk].phi_rot = kk< logspir->branches ? kk*logspir->phi_rot : (kk-logspir->branches)*logspir->phi_rot;
-		logspir->orientations[kk].inverted = kk< logspir->branches ? 1 : -1;
-		printf("the orientation of the branches phi_rot %f, inverted %d\n", logspir->orientations[kk].phi_rot, logspir->orientations[kk].inverted);
-	}
+	logspir->phi_rot = phi_rot;
+	logspir->inverted = inverted;
 	logspir->mindistance = 2*sin(logspir->theta_end/2)*zmin;
+}
+
+
+void initialize_scene(SceneLog *s){
+	s->number_spirals = 0;
+}
+
+void add_logspir(SceneLog *s, LogSpir logspir){
+	s->all_branches[s->number_spirals] = logspir;
+	s->number_spirals += 1;
+}
+
+/*! \brief Function to populate the scene with mirrors, this can be changed if one wants to use a non standard geometry
+@param *s pointer to Scene to populate	
+@param branches number of branches per side
+@param doublesided spirals on both sides of the optical axis
+@param zmin zmin of all spirals
+@param zmax zmax of all spirals
+@param ymin
+@param ymax
+@param psi (deg) angle of attack for all mirrors
+@param phi_rot (rad) angle between the mirrors 
+@param m m-value of coating of all mirrors
+*/
+void populate_scene(SceneLog *s, int branches, int doublesided, float zmin, float zmax, float ymin, float ymax, float psi, float phi_rot, float m){
+	LogSpir logspir;
+	LogSpirinit(&logspir, zmin, zmax, ymin, ymax, psi, 0, m, 1e-7, 10, 1);
+	double phi_rot_base = phi_rot == 0 ? logspir.theta_end: phi_rot; 
+	//LogSpirinit(logspir, zmin, zmax, ymin, ymax, psi, phi, m,  1e-7, 10, inverted);
+	initialize_scene(s);
+	for (int kk = 0; kk<((doublesided+1)*branches); kk++){//TODO reading orientations from a file?
+			logspir.phi_rot = kk<branches ? kk*phi_rot_base: (kk-branches)*phi_rot_base;
+			logspir.inverted = kk<branches ? 1: -1;
+			add_logspir(s, logspir);
+			printf("phi %f, inv %d total_spir %d\n", s->all_branches[kk].phi_rot, s->all_branches[kk].inverted, s->number_spirals);
+		}
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -492,7 +518,7 @@ float return_intersection_time(LogSpir logspir, part_log neutron, double theta_i
 @param logspir Logarithmic spiral
 @param part_log incoming neutron
 */
-BranchTime return_first_interaction(LogSpir logspir, part_log init_neut){
+BranchTime return_first_interaction(SceneLog s, part_log init_neut){
 	double t;
 	double theta_rot;
 	double theta_int;
@@ -500,19 +526,19 @@ BranchTime return_first_interaction(LogSpir logspir, part_log init_neut){
 	BranchTime brt;//stores the first interaction and saves the according branch
 	part_log rotneut;
 	brt.t = -1.0;
-	for (int kk=0; kk<((logspir.doublesided+1)*logspir.branches); kk++){//go through all the orientations
-		theta_rot = -logspir.orientations[kk].phi_rot;
-		inverted = logspir.orientations[kk].inverted;
+	for (int kk=0; kk<s.number_spirals; kk++){//go through all the orientations
+		theta_rot = -s.all_branches[kk].phi_rot;
+		inverted = s.all_branches[kk].inverted;
 		//rotate and mirror the neutron according to the branches orientation
 		mirror_vector(&rotneut, init_neut, inverted);
 		rotate_vector(&rotneut, rotneut, theta_rot);
-		theta_int = return_precise_theta_int(logspir, rotneut, 10);
+		theta_int = return_precise_theta_int(s.all_branches[kk], rotneut, 10);
 		//printf("thetaint %f vz berfore %f\n", theta_int, init_neut.vz);
-		t = return_intersection_time(logspir, rotneut, theta_int);
+		t = return_intersection_time(s.all_branches[kk], rotneut, theta_int);
 		if (t>0){
 			if (t<brt.t || brt.t<0){
 				brt.t = t;
-				brt.branch = logspir.orientations[kk];
+				brt.logspir = s.all_branches[kk];
 				brt.theta_int = theta_int;
 			}
 		}
@@ -520,9 +546,9 @@ BranchTime return_first_interaction(LogSpir logspir, part_log init_neut){
 	return brt;
 }
 
-int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
+int evaluate_first_interaction(SceneLog s, part_log *neutron){
 	BranchTime brt;
-	brt = return_first_interaction(logspir, *neutron);
+	brt = return_first_interaction(s, *neutron);
 	double t_prop;
 	double theta_int;
 	double phi_rot;
@@ -530,9 +556,9 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 	part_log n;
 	part_log n_rot;
 	t_prop = brt.t;
-	theta_int = brt.theta_int;
-	phi_rot =  brt.branch.phi_rot;
-	inverted = brt.branch.inverted;
+	theta_int = brt.theta_int;//the angle (unrotated) in which the interaction takes place
+	phi_rot =  brt.logspir.phi_rot;//the angle between the the logspir and the McStas Co-ordinate system
+	inverted = brt.logspir.inverted;//is the spiral mirrored?
 	//printf("proptime %f", t_prop);
 	if (t_prop < 0){
 		return 0;
@@ -540,15 +566,23 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 	else{
 		//if the time is valid we propagate the neutron to the surface
 		propagate_neutron(neutron, t_prop);//propagate neutron
-		n = return_normal_vec(logspir, theta_int);
+		n = return_normal_vec(brt.logspir, theta_int);
 		rotate_vector(&n_rot, n, phi_rot);//
 		mirror_vector(&n_rot, n_rot, inverted);
-		reflect_neutron(n_rot, neutron, logspir.mValue);
+		reflect_neutron(n_rot, neutron, brt.logspir.mValue);
 		return 1;
 	}
 }
 
-
+void run_scene(SceneLog s, part_log *n, int max_interactions){
+	int interaction = 1;
+	for (int kk; kk<max_interactions; kk++){
+		interaction = evaluate_first_interaction(s, n);
+		if (interaction == 0){
+			break;
+		}
+	}
+}
 
 //double return_time_first_interaction(LogSpir logspir, double theta_int, part_log *n){
 //	double z_int = cos(theta_int)*return_r(theta_int, logspir.k, logspir.zmin);
@@ -567,45 +601,24 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 
 DECLARE
 %{
-	double dt;
-	double theta_int;
-	LogSpir logspir;
-	LogSpir *logspirp;
-	part_log normal;
+	SceneLog s;
 %}
 
 INITIALIZE
-%{
-	//printf("does this even fucking care\n");
-	logspirp = &logspir;
-	///////////////////////////////////////////////////////////////////////////
-	/////////////// Initialize the logarithmic spiral
-	///////////////////////////////////////////////////////////////////////////
-	LogSpirinit(logspirp, zmin, zmax, ymin, ymax, psi, phi_rot, mValue, precision, max_iterations, branches, doublesided);
-
-	printf("theta_end%f", logspir.theta_end);
+%{	
+	populate_scene(&s, branches, doublesided, zmin, zmax, ymin, ymax, psi, phi_rot, mValue);
 %}
-
 	// Test user input for illegal values
 
 TRACE
 %{
   part_log n;
-
   part_log *ptrn;
   ptrn = &n;
   //PROP_Z0;this not needed to allow neutrons from the other side to hit the logspiral
   //printf("\n z=%f y=%f x=%f vz=%f vy=%f vx=%f \n", z, y, x, vz, vy, vx);
   n = Neutron2Dinit(ptrn, z, y, x, vz, vy, vx);//puts all of the neutron info into the pointer ptrn pointing to n
-  for (int ii = 0; ii < NUMBERMIRROR; ii++){ // for a maximum of NUMBERMIRROR interactions
-	  //propagate neutron to the next interaction
-	  interaction = evaluate_first_interaction(logspir, ptrn);
-	  //printf("ii %d , %d \n", ii, 0);
-	  //printf("after interaction z = %f, x = %f, vz = %f, vx = %f\n", returnz(n), returnx(n), returnvz(n), returnvx(n));
-	  if (interaction==0){
-		  break;
-	  }
-  }
+  run_scene(s, &n, 10);
   z  = returnz(n);
   vz = returnvz(n);
   y  = returny(n);
