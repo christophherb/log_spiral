@@ -108,6 +108,7 @@ class LogSpir:
         self.derivative = lambda theta: self.zstart*np.exp(self.k*theta)*(np.cos(theta)*self.k-np.sin(theta))
         self.theta_end = self.return_precise_theta_end(self.zend)
         self.phi_rot = self.theta_end if phi_rot == 0 else phi_rot*deg2rad
+        self.orientations = [(kk*phi_rot, kk%2) for kk in range(branches)]
         self.xend = self.zend*np.tan(self.theta_end)
         self.branches = branches
 
