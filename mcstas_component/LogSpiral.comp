@@ -393,32 +393,6 @@ void add_logspir(SceneLog *s, LogSpir logspir){
 	s->number_spirals += 1;
 }
 
-/*! \brief Function to populate the scene with mirrors, this can be changed if one wants to use a non standard geometry
-@param *s pointer to Scene to populate	
-@param branches number of branches per side
-@param doublesided spirals on both sides of the optical axis
-@param zmin zmin of all spirals
-@param zmax zmax of all spirals
-@param ymin
-@param ymax
-@param psi (deg) angle of attack for all mirrors
-@param phi_rot (rad) angle between the mirrors 
-@param m m-value of coating of all mirrors
-*/
-void populate_scene(SceneLog *s, int branches, int doublesided, float zmin, float zmax, float ymin, float ymax, float psi, float phi_rot, float m){
-	LogSpir logspir;
-	LogSpirinit(&logspir, zmin, zmax, ymin, ymax, psi, 0, m, 1e-7, 10, 1);
-	double phi_rot_base = phi_rot == 0 ? logspir.theta_end: phi_rot; 
-	//LogSpirinit(logspir, zmin, zmax, ymin, ymax, psi, phi, m,  1e-7, 10, inverted);
-	initialize_scene(s);
-	for (int kk = 0; kk<((doublesided+1)*branches); kk++){//TODO reading orientations from a file?
-			logspir.phi_rot = kk<branches ? kk*phi_rot_base: (kk-branches)*phi_rot_base;
-			logspir.inverted = kk<branches ? 1: -1;
-			add_logspir(s, logspir);
-			printf("phi %f, inv %d total_spir %d\n", s->all_branches[kk].phi_rot, s->all_branches[kk].inverted, s->number_spirals);
-		}
-}
-
 ///////////////////////////////////////////////////////////////////////////
 /////////////// Functions assisting in the reflection
 ///////////////////////////////////////////////////////////////////////////
@@ -584,10 +558,31 @@ void run_scene(SceneLog s, part_log *n, int max_interactions){
 	}
 }
 
-//double return_time_first_interaction(LogSpir logspir, double theta_int, part_log *n){
-//	double z_int = cos(theta_int)*return_r(theta_int, logspir.k, logspir.zmin);
-//	return z_int/n->vz;
-//}
+/*! \brief Function to populate the scene with mirrors, this can be changed if one wants to use a non standard geometry
+@param *s pointer to Scene to populate	
+@param branches number of branches per side
+@param doublesided spirals on both sides of the optical axis
+@param zmin zmin of all spirals
+@param zmax zmax of all spirals
+@param ymin
+@param ymax
+@param psi (deg) angle of attack for all mirrors
+@param phi_rot (rad) angle between the mirrors 
+@param m m-value of coating of all mirrors
+*/
+void populate_scene(SceneLog *s, int branches, int doublesided, float zmin, float zmax, float ymin, float ymax, float psi, float phi_rot, float m){
+	LogSpir logspir;
+	LogSpirinit(&logspir, zmin, zmax, ymin, ymax, psi, 0, m, 1e-7, 10, 1);
+	double phi_rot_base = phi_rot == 0 ? logspir.theta_end: phi_rot; 
+	//LogSpirinit(logspir, zmin, zmax, ymin, ymax, psi, phi, m,  1e-7, 10, inverted);
+	initialize_scene(s);
+	for (int kk = 0; kk<((doublesided+1)*branches); kk++){//TODO reading orientations from a file?
+			logspir.phi_rot = kk<branches ? kk*phi_rot_base: (kk-branches)*phi_rot_base;
+			logspir.inverted = kk<branches ? 1: -1;
+			add_logspir(s, logspir);
+			printf("phi %f, inv %d total_spir %d\n", s->all_branches[kk].phi_rot, s->all_branches[kk].inverted, s->number_spirals);
+		}
+}
 
 
 ///////////////////////////////////////////////////////////////////////////

@@ -2,7 +2,7 @@
  * Format:     ANSI C source code
  * Creator:    McStas <http://www.mcstas.org>
  * Instrument: reverse_test.instr (logspir_test)
- * Date:       Mon Feb 21 18:11:48 2022
+ * Date:       Tue Feb 22 17:52:33 2022
  * File:       ./reverse_test.c
  * Compile:    cc -o logspir_test.out ./reverse_test.c 
  * CFLAGS=
@@ -8860,20 +8860,25 @@ void TableReflecFunc(double mc_pol_q, t_Table *mc_pol_par, double *mc_pol_r) {
 
 /* end of ref-lib.c */
 
-#define NUMBERMIRROR 20 
+#define NUMBERMIRROR 20
+#define V2Q_conic 1.58825361e-3
+#define Q2V_conic 629.622368
+#define DEG2RAD 3.1415927/180
+
 double dt; // time to propagate the neutron onto the mirror surface
 double interaction; //if no interaction can take place neutrons are propagated onto the next component
-	///////////////////////////////////////////////////////////////////////////
+
+double getRandomLog() {
+    return (double)lrand48()/RAND_MAX;
+}
+
+///////////////////////////////////////////////////////////////////////////
 /////////////// Some Structures
 ///////////////////////////////////////////////////////////////////////////
-//saves the orientation of the log spiral branch with respect to the original
-typedef struct orientation{
-	double phi_rot;
-	int inverted;
-} orientation;
 
 
 
+//! Stucture to represent one Branch of the spiral
 typedef struct LogSpir{
     double zmin;
     double zmax;
@@ -8883,15 +8888,18 @@ typedef struct LogSpir{
     double psi_rad;//=psi*DEG2RAD;
     double k;//=arctan(psi_rad);
     double precision;
-    double theta_end;
-	double phi_rot;//the angle between the individual arms of the spiral defaults to theta_end
+    double theta_end;//rad
 	double mValue;
-    double x_end;
-	double mindistance;
-	orientation orientations[NUMBERMIRROR];//saves the orientations of the mirrors
-	int branches;
-	int doublesided;
-} LogSpir;//logspiral will be our surface to reflect from; nice
+	double mindistance; //minimum distace between two mirrors, useful for the minimum time 
+	double phi_rot;//the rotation of the spiral branch
+	int inverted;//whether the spiral is reflected at the x-axis
+} LogSpir;
+
+//! Structure to save all the branches
+typedef struct SceneLog{
+	int number_spirals;
+	LogSpir all_branches[NUMBERMIRROR];
+} SceneLog;
 
 
 /*! \brief typedef containing the relevant neutron properties
@@ -8909,15 +8917,36 @@ typedef struct part_log{
 	double vx;
 } part_log;//Structure for a 2D part_log
 
-double getRandomLog() {
-    return (double)lrand48()/RAND_MAX;
-}
-
 typedef struct BranchTime{
-	orientation branch;//rotation angle of the branch
+	LogSpir logspir;//the logspiral branch the neutron interacts with
 	double t;//time of interaction
 	double theta_int;//angle under which the interaction takes place
 } BranchTime;//Structure for a 2D part_log
+
+///////////////////////////////////////////////////////////////////////////
+/////////////// Some auxiliary functions
+///////////////////////////////////////////////////////////////////////////
+
+/*! \brief Function to create a Neutron part_log
+@param *neutron pointer to neutron, which is initialized
+@param z z-cooridinate of neutron
+@param y
+@param x
+@param vz speed in z-direction
+@param vy
+@param vx
+@return part_log Neutron
+*/
+part_log Neutron2Dinit(part_log *neutron, double z, double y, double x, double vz, double vy, double vx){//creating the neutron TODO polarization
+	neutron->z = z;
+	neutron->x = x;
+	neutron->vz = vz;
+	neutron->vx = vx;
+	neutron->y = y;
+	neutron->vy = vy;
+	return *neutron;
+}
+
 
 double returnz(part_log n){
 	return n.z;
@@ -8942,11 +8971,15 @@ double returnx(part_log n){
 double returnvx(part_log n){
 	return n.vx;
 }
-#define V2Q_conic 1.58825361e-3
-#define Q2V_conic 629.622368
 
+//can we do this with mcstas builtins?
+void propagate_neutron(part_log *incoming, double dt){
+	incoming->x += incoming->vx*dt;
+	incoming->z += incoming->vz*dt;
+	incoming->y += incoming->vy*dt;
+}
 
-/*! \brief Function returns the supermirrorreflectivity for a given perp impulse q and m-value
+/*! \brief Function returns the supermirrorreflectivity for a given perpendicular impulse q and m-value of the mirror coating
 
 @param q perp impulse component
 @param m Value of the mirror
@@ -8986,8 +9019,6 @@ double calcSupermirrorReflectivityLog(double q, double m){
       weight = R_0;
       return weight;
     }
-
-
     weight = R_0*0.5*(1 - tanh(arg))*(1 - alpha*(q - Q_c) + beta*(q - Q_c)*(q - Q_c));
     return weight;
 }
@@ -9010,7 +9041,8 @@ void rotate_vector(part_log *neutron, part_log initneut, double theta_rot){//rot
 
 }
 
-void invert_vector(part_log *neutron, part_log initneut, double invert){
+
+void mirror_vector(part_log *neutron, part_log initneut, double invert){
 	neutron->z = initneut.z;
 	neutron->x = initneut.x*invert;
 	neutron->vz = initneut.vz;
@@ -9019,25 +9051,6 @@ void invert_vector(part_log *neutron, part_log initneut, double invert){
 	neutron->y = initneut.y;
 }
 
-/*! \brief Function to create a Neutron part_log
-@param *neutron pointer to neutron, which is initialized
-@param z z-cooridinate of neutron
-@param y
-@param x
-@param vz speed in z-direction
-@param vy
-@param vx
-@return part_log Neutron
-*/
-part_log Neutron2Dinit(part_log *neutron, double z, double y, double x, double vz, double vy, double vx){//creating the neutron TODO polarization
-	neutron->z = z;
-	neutron->x = x;
-	neutron->vz = vz;
-	neutron->vx = vx;
-	neutron->y = y;
-	neutron->vy = vy;
-	return *neutron;
-}
 
 /*! \brief Function determines probability of reflection at surface and changes velocities accordingly
 @param normal normalvector of surface (only vx, vz and vy are used)
@@ -9132,6 +9145,20 @@ double return_precise_theta_end(LogSpir logspir, int max_iterations){
 	return -10.0;
 }
 
+/*! \brief Function returns normal vector to the logspir
+@param logspir Logarithmic spiral
+@param max_iterations number of iterations after which the algorithms gives up
+@return precise angle if convergence is reached, -10 else
+*/
+part_log return_normal_vec(LogSpir logspir, double theta){//returns the normalized normal vector to the surface
+	part_log n2d;
+	double k = logspir.k;
+	double prefac = 1/sqrt(1+k*k);
+	n2d.vz = (cos(theta)+k*sin(theta))*prefac;
+	n2d.vx = (sin(theta)-k*cos(theta))*prefac;
+	return n2d;
+}
+
 /*! \brief Function initializes a Logarithmic Spiral with all information necessary to calculate reflection
 @param logspir pointer of LogSpir object which to initialize
 @param zmin z-coordinate (m) at which the spiral starts
@@ -9145,7 +9172,7 @@ double return_precise_theta_end(LogSpir logspir, int max_iterations){
 @param max_iterations (1) number of the maximum iterations for Newton-Raphson
 @param branches number of spiral branches
 */
-void LogSpirinit(LogSpir *logspir, double zmin, double zmax, double ymin, double ymax, double psi, double phi_rot, double mValue, double precision, double max_iterations, int branches, int doublesided){
+void LogSpirinit(LogSpir *logspir, double zmin, double zmax, double ymin, double ymax, double psi, double phi_rot, double mValue, double precision, double max_iterations, int inverted){
 	logspir->zmin = zmin;
 	logspir->zmax = zmax;
 	logspir->ymin = ymin;
@@ -9155,17 +9182,26 @@ void LogSpirinit(LogSpir *logspir, double zmin, double zmax, double ymin, double
 	logspir->mValue = mValue;
 	logspir->k = 1/tan(logspir->psi_rad);
 	logspir->precision = precision;
-	logspir->branches = branches;
-	logspir->doublesided = doublesided;
 	logspir->theta_end = return_precise_theta_end(*logspir, max_iterations);
-	logspir->phi_rot = phi_rot > 0 ? phi_rot : logspir->theta_end; //the rotation of the spirals is by default theta _end
-	for (int kk = 0; kk<((doublesided+1)*branches); kk++){//to be used later on
-		logspir->orientations[kk].phi_rot = kk< logspir->branches ? kk*logspir->phi_rot : (kk-logspir->branches)*logspir->phi_rot;
-		logspir->orientations[kk].inverted = kk< logspir->branches ? 1 : -1;
-		printf("the orientation of the branches phi_rot %f, inverted %d\n", logspir->orientations[kk].phi_rot, logspir->orientations[kk].inverted);
-	}
+	logspir->phi_rot = phi_rot;
+	logspir->inverted = inverted;
 	logspir->mindistance = 2*sin(logspir->theta_end/2)*zmin;
 }
+
+
+void initialize_scene(SceneLog *s){
+	s->number_spirals = 0;
+}
+
+void add_logspir(SceneLog *s, LogSpir logspir){
+	s->all_branches[s->number_spirals] = logspir;
+	s->number_spirals += 1;
+}
+
+///////////////////////////////////////////////////////////////////////////
+/////////////// Functions assisting in the reflection
+///////////////////////////////////////////////////////////////////////////
+
 
 /*! \brief Function returns the approximate angle of intersection spiral to be refined by Newton-Raphson
 @param logspir Logarithmic spiral
@@ -9183,14 +9219,14 @@ double return_approx_theta_int(LogSpir logspir, part_log neutron){//approximatin
 	}else{
 		lam = ((-logspir.zmin+neutron.z)*m-neutron.x)/denom;//approximate mirror as a line calculate the intersection and determine the angle
 		z_int = neutron.z+neutron.vz*lam;
-		x_int = neutron.x+neutron.vx*lam;
 		//printf("z intersection %f x intersection %f lam %f theta_end %f\n", z_int, x_int, lam, logspir.theta_end);
 		if (z_int >= logspir.zmin && z_int <= logspir.zmax){
+				x_int = neutron.x+neutron.vx*lam;
 				//printf("init theta %f theta_end/2 %f\n", atan((x_int)/(z_int)), logspir.theta_end/2);
 				return atan((x_int)/(z_int));
 		}
 	}
-	return -10;
+	return -10; // if the intersection is not on the line return the False Value
 }
 
 
@@ -9257,10 +9293,11 @@ float return_intersection_time(LogSpir logspir, part_log neutron, double theta_i
 
 
 
-/*! \brief Function returns an approximation of the angle of the end of the spiral to be refined by Newton-Raphson
+/*! \brief Function returns the BranchTime object of the first Interaction
 @param logspir Logarithmic spiral
+@param part_log incoming neutron
 */
-BranchTime return_first_interaction(LogSpir logspir, part_log init_neut){
+BranchTime return_first_interaction(SceneLog s, part_log init_neut){
 	double t;
 	double theta_rot;
 	double theta_int;
@@ -9268,47 +9305,29 @@ BranchTime return_first_interaction(LogSpir logspir, part_log init_neut){
 	BranchTime brt;//stores the first interaction and saves the according branch
 	part_log rotneut;
 	brt.t = -1.0;
-	for (int kk=0; kk<((logspir.doublesided+1)*logspir.branches); kk++){//go through all the orientations
-		theta_rot = -logspir.orientations[kk].phi_rot;
-		inverted = logspir.orientations[kk].inverted;
+	for (int kk=0; kk<s.number_spirals; kk++){//go through all the orientations
+		theta_rot = -s.all_branches[kk].phi_rot;
+		inverted = s.all_branches[kk].inverted;
 		//rotate and mirror the neutron according to the branches orientation
-		invert_vector(&rotneut, init_neut, inverted);
+		mirror_vector(&rotneut, init_neut, inverted);
 		rotate_vector(&rotneut, rotneut, theta_rot);
-		theta_int = return_precise_theta_int(logspir, rotneut, 10);
+		theta_int = return_precise_theta_int(s.all_branches[kk], rotneut, 10);
 		//printf("thetaint %f vz berfore %f\n", theta_int, init_neut.vz);
-		t = return_intersection_time(logspir, rotneut, theta_int);
+		t = return_intersection_time(s.all_branches[kk], rotneut, theta_int);
 		if (t>0){
 			if (t<brt.t || brt.t<0){
 				brt.t = t;
-				brt.branch = logspir.orientations[kk];
+				brt.logspir = s.all_branches[kk];
 				brt.theta_int = theta_int;
 			}
 		}
-
 	}
 	return brt;
 }
 
-part_log return_normal_vec(LogSpir logspir, double theta){//returns the normalized normal vector to the surface
-	part_log n2d;
-	double k = logspir.k;
-	double prefac = 1/sqrt(1+k*k);
-	n2d.vz = (cos(theta)+k*sin(theta))*prefac;
-	n2d.vx = (sin(theta)-k*cos(theta))*prefac;
-	return n2d;
-}
-
-
-
-void propagate_neutron(part_log *incoming, double dt){
-	incoming->x += incoming->vx*dt;
-	incoming->z += incoming->vz*dt;
-	incoming->y += incoming->vy*dt;
-}
-
-int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
+int evaluate_first_interaction(SceneLog s, part_log *neutron){
 	BranchTime brt;
-	brt = return_first_interaction(logspir, *neutron);
+	brt = return_first_interaction(s, *neutron);
 	double t_prop;
 	double theta_int;
 	double phi_rot;
@@ -9316,9 +9335,9 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 	part_log n;
 	part_log n_rot;
 	t_prop = brt.t;
-	theta_int = brt.theta_int;
-	phi_rot =  brt.branch.phi_rot;
-	inverted = brt.branch.inverted;
+	theta_int = brt.theta_int;//the angle (unrotated) in which the interaction takes place
+	phi_rot =  brt.logspir.phi_rot;//the angle between the the logspir and the McStas Co-ordinate system
+	inverted = brt.logspir.inverted;//is the spiral mirrored?
 	//printf("proptime %f", t_prop);
 	if (t_prop < 0){
 		return 0;
@@ -9326,20 +9345,49 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 	else{
 		//if the time is valid we propagate the neutron to the surface
 		propagate_neutron(neutron, t_prop);//propagate neutron
-		n = return_normal_vec(logspir, theta_int);
+		n = return_normal_vec(brt.logspir, theta_int);
 		rotate_vector(&n_rot, n, phi_rot);//
-		invert_vector(&n_rot, n_rot, inverted);
-		reflect_neutron(n_rot, neutron, logspir.mValue);
+		mirror_vector(&n_rot, n_rot, inverted);
+		reflect_neutron(n_rot, neutron, brt.logspir.mValue);
 		return 1;
 	}
 }
 
+void run_scene(SceneLog s, part_log *n, int max_interactions){
+	int interaction = 1;
+	for (int kk; kk<max_interactions; kk++){
+		interaction = evaluate_first_interaction(s, n);
+		if (interaction == 0){
+			break;
+		}
+	}
+}
 
-
-//double return_time_first_interaction(LogSpir logspir, double theta_int, part_log *n){
-//	double z_int = cos(theta_int)*return_r(theta_int, logspir.k, logspir.zmin);
-//	return z_int/n->vz;
-//}
+/*! \brief Function to populate the scene with mirrors, this can be changed if one wants to use a non standard geometry
+@param *s pointer to Scene to populate	
+@param branches number of branches per side
+@param doublesided spirals on both sides of the optical axis
+@param zmin zmin of all spirals
+@param zmax zmax of all spirals
+@param ymin
+@param ymax
+@param psi (deg) angle of attack for all mirrors
+@param phi_rot (rad) angle between the mirrors 
+@param m m-value of coating of all mirrors
+*/
+void populate_scene(SceneLog *s, int branches, int doublesided, float zmin, float zmax, float ymin, float ymax, float psi, float phi_rot, float m){
+	LogSpir logspir;
+	LogSpirinit(&logspir, zmin, zmax, ymin, ymax, psi, 0, m, 1e-7, 10, 1);
+	double phi_rot_base = phi_rot == 0 ? logspir.theta_end: phi_rot; 
+	//LogSpirinit(logspir, zmin, zmax, ymin, ymax, psi, phi, m,  1e-7, 10, inverted);
+	initialize_scene(s);
+	for (int kk = 0; kk<((doublesided+1)*branches); kk++){//TODO reading orientations from a file?
+			logspir.phi_rot = kk<branches ? kk*phi_rot_base: (kk-branches)*phi_rot_base;
+			logspir.inverted = kk<branches ? 1: -1;
+			add_logspir(s, logspir);
+			printf("phi %f, inv %d total_spir %d\n", s->all_branches[kk].phi_rot, s->all_branches[kk].inverted, s->number_spirals);
+		}
+}
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -9348,7 +9396,7 @@ int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
 //part_log n;
 
 
-#line 9351 "./reverse_test.c"
+#line 9399 "./reverse_test.c"
 
 /* Instrument parameters. */
 MCNUM mcipsource_width;
@@ -9529,7 +9577,7 @@ double IntermediateCnts;
 time_t StartTime;
 time_t EndTime;
 time_t CurrentTime;
-#line 9532 "./reverse_test.c"
+#line 9580 "./reverse_test.c"
 #undef minutes
 #undef flag_save
 #undef percent
@@ -9576,7 +9624,7 @@ time_t CurrentTime;
 #define flux mccsource_div_flux
 #line 69 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, focus_yh;
-#line 9579 "./reverse_test.c"
+#line 9627 "./reverse_test.c"
 #undef flux
 #undef gauss
 #undef dlambda
@@ -9644,7 +9692,7 @@ double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, foc
   DArray2d PSD_N;
   DArray2d PSD_p;
   DArray2d PSD_p2;
-#line 9647 "./reverse_test.c"
+#line 9695 "./reverse_test.c"
 #undef restore_neutron
 #undef yheight
 #undef xwidth
@@ -9703,7 +9751,7 @@ double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, foc
     
     double dt;
     int silicon; // +1: neutron in silicon, -1: neutron in air, 0: mirrorwidth is 0; neutron cannot be in silicon
-#line 9706 "./reverse_test.c"
+#line 9754 "./reverse_test.c"
 #undef doubleReflections
 #undef mirror_sidelength
 #undef mirror_width
@@ -9744,13 +9792,9 @@ double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, foc
 #define branches mcclogspir_branches
 #define doublesided mcclogspir_doublesided
 #define placeholder mcclogspir_placeholder
-#line 551 "LogSpiral.comp"
-	double dt;
-	double theta_int;
-	LogSpir logspir;
-	LogSpir *logspirp;
-	part_log normal;
-#line 9753 "./reverse_test.c"
+#line 599 "LogSpiral.comp"
+	SceneLog s;
+#line 9797 "./reverse_test.c"
 #undef placeholder
 #undef doublesided
 #undef branches
@@ -9788,7 +9832,7 @@ double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, foc
   DArray2d PSD_N;
   DArray2d PSD_p;
   DArray2d PSD_p2;
-#line 9791 "./reverse_test.c"
+#line 9835 "./reverse_test.c"
 #undef restore_neutron
 #undef yheight
 #undef xwidth
@@ -9875,14 +9919,14 @@ void mcinit(void) {
   mccorigin_flag_save = 0;
 #line 39 "reverse_test.instr"
   mccorigin_minutes = 0;
-#line 9878 "./reverse_test.c"
+#line 9922 "./reverse_test.c"
 
   SIG_MESSAGE("origin (Init:Place/Rotate)");
   rot_set_rotation(mcrotaorigin,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 9885 "./reverse_test.c"
+#line 9929 "./reverse_test.c"
   rot_copy(mcrotrorigin, mcrotaorigin);
   mcposaorigin = coords_set(
 #line 49 "reverse_test.instr"
@@ -9891,7 +9935,7 @@ void mcinit(void) {
     0,
 #line 49 "reverse_test.instr"
     0);
-#line 9894 "./reverse_test.c"
+#line 9938 "./reverse_test.c"
   mctc1 = coords_neg(mcposaorigin);
   mcposrorigin = rot_apply(mcrotaorigin, mctc1);
   mcDEBUG_COMPONENT("origin", mcposaorigin, mcrotaorigin)
@@ -9908,7 +9952,7 @@ void mcinit(void) {
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 9911 "./reverse_test.c"
+#line 9955 "./reverse_test.c"
   rot_mul(mctr1, mcrotaorigin, mcrotasource);
   rot_transpose(mcrotaorigin, mctr1);
   rot_mul(mcrotasource, mctr1, mcrotrsource);
@@ -9919,7 +9963,7 @@ void mcinit(void) {
     0,
 #line 53 "reverse_test.instr"
     0);
-#line 9922 "./reverse_test.c"
+#line 9966 "./reverse_test.c"
   rot_transpose(mcrotaorigin, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource = coords_add(mcposaorigin, mctc2);
@@ -9953,7 +9997,7 @@ void mcinit(void) {
   mccsource_div_gauss = 0;
 #line 61 "reverse_test.instr"
   mccsource_div_flux = 1e11;
-#line 9956 "./reverse_test.c"
+#line 10000 "./reverse_test.c"
 
   SIG_MESSAGE("source_div (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
@@ -9963,7 +10007,7 @@ void mcinit(void) {
     (0)*DEG2RAD,
 #line 64 "reverse_test.instr"
     (0)*DEG2RAD);
-#line 9966 "./reverse_test.c"
+#line 10010 "./reverse_test.c"
   rot_mul(mctr1, mcrotasource, mcrotasource_div);
   rot_transpose(mcrotasource, mctr1);
   rot_mul(mcrotasource_div, mctr1, mcrotrsource_div);
@@ -9974,7 +10018,7 @@ void mcinit(void) {
     0,
 #line 63 "reverse_test.instr"
     0);
-#line 9977 "./reverse_test.c"
+#line 10021 "./reverse_test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource_div = coords_add(mcposasource, mctc2);
@@ -10002,7 +10046,7 @@ void mcinit(void) {
   mccslit_xwidth = 0;
 #line 46 "reverse_test.instr"
   mccslit_yheight = 0;
-#line 10005 "./reverse_test.c"
+#line 10049 "./reverse_test.c"
 
   SIG_MESSAGE("slit (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
@@ -10012,7 +10056,7 @@ void mcinit(void) {
     (0)*DEG2RAD,
 #line 74 "reverse_test.instr"
     (0)*DEG2RAD);
-#line 10015 "./reverse_test.c"
+#line 10059 "./reverse_test.c"
   rot_mul(mctr1, mcrotasource, mcrotaslit);
   rot_transpose(mcrotasource_div, mctr1);
   rot_mul(mcrotaslit, mctr1, mcrotrslit);
@@ -10023,7 +10067,7 @@ void mcinit(void) {
     0,
 #line 73 "reverse_test.instr"
     0.675 -0.060001);
-#line 10026 "./reverse_test.c"
+#line 10070 "./reverse_test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposaslit = coords_add(mcposasource, mctc2);
@@ -10057,14 +10101,14 @@ void mcinit(void) {
   mccpsd_before_optic_yheight = 1;
 #line 82 "reverse_test.instr"
   mccpsd_before_optic_restore_neutron = 1;
-#line 10060 "./reverse_test.c"
+#line 10104 "./reverse_test.c"
 
   SIG_MESSAGE("psd_before_optic (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 10067 "./reverse_test.c"
+#line 10111 "./reverse_test.c"
   rot_mul(mctr1, mcrotasource, mcrotapsd_before_optic);
   rot_transpose(mcrotaslit, mctr1);
   rot_mul(mcrotapsd_before_optic, mctr1, mcrotrpsd_before_optic);
@@ -10075,7 +10119,7 @@ void mcinit(void) {
     0,
 #line 83 "reverse_test.instr"
     0.675 -0.06);
-#line 10078 "./reverse_test.c"
+#line 10122 "./reverse_test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposapsd_before_optic = coords_add(mcposasource, mctc2);
@@ -10113,7 +10157,7 @@ void mcinit(void) {
   mccflat_ellipse_horizontal_mirror_sidelength = 10;
 #line 95 "reverse_test.instr"
   mccflat_ellipse_horizontal_doubleReflections = 1;
-#line 10116 "./reverse_test.c"
+#line 10160 "./reverse_test.c"
 
   SIG_MESSAGE("flat_ellipse_horizontal (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
@@ -10123,7 +10167,7 @@ void mcinit(void) {
     (0)*DEG2RAD,
 #line 100 "reverse_test.instr"
     (0)*DEG2RAD);
-#line 10126 "./reverse_test.c"
+#line 10170 "./reverse_test.c"
   rot_mul(mctr1, mcrotasource, mcrotaflat_ellipse_horizontal);
   rot_transpose(mcrotapsd_before_optic, mctr1);
   rot_mul(mcrotaflat_ellipse_horizontal, mctr1, mcrotrflat_ellipse_horizontal);
@@ -10134,7 +10178,7 @@ void mcinit(void) {
     0,
 #line 99 "reverse_test.instr"
     0.675);
-#line 10137 "./reverse_test.c"
+#line 10181 "./reverse_test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposaflat_ellipse_horizontal = coords_add(mcposasource, mctc2);
@@ -10165,14 +10209,14 @@ void mcinit(void) {
 #line 45 "reverse_test.instr"
   mcclogspir_max_iterations = 10;
 #line 111 "reverse_test.instr"
-  mcclogspir_mValue = 11;
+  mcclogspir_mValue = 100;
 #line 109 "reverse_test.instr"
   mcclogspir_branches = mcipbranches;
 #line 112 "reverse_test.instr"
   mcclogspir_doublesided = mcipdoublesided;
 #line 49 "reverse_test.instr"
   mcclogspir_placeholder = 0;
-#line 10175 "./reverse_test.c"
+#line 10219 "./reverse_test.c"
 
   SIG_MESSAGE("logspir (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
@@ -10182,7 +10226,7 @@ void mcinit(void) {
     (180)*DEG2RAD,
 #line 114 "reverse_test.instr"
     (0)*DEG2RAD);
-#line 10185 "./reverse_test.c"
+#line 10229 "./reverse_test.c"
   rot_mul(mctr1, mcrotasource, mcrotalogspir);
   rot_transpose(mcrotaflat_ellipse_horizontal, mctr1);
   rot_mul(mcrotalogspir, mctr1, mcrotrlogspir);
@@ -10193,7 +10237,7 @@ void mcinit(void) {
     0,
 #line 113 "reverse_test.instr"
     0.675 * 2);
-#line 10196 "./reverse_test.c"
+#line 10240 "./reverse_test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposalogspir = coords_add(mcposasource, mctc2);
@@ -10227,7 +10271,7 @@ void mcinit(void) {
   mccpsd_monitor_yheight = 0.1;
 #line 125 "reverse_test.instr"
   mccpsd_monitor_restore_neutron = 1;
-#line 10230 "./reverse_test.c"
+#line 10274 "./reverse_test.c"
 
   SIG_MESSAGE("psd_monitor (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
@@ -10237,7 +10281,7 @@ void mcinit(void) {
     (0)*DEG2RAD,
 #line 127 "reverse_test.instr"
     (0)*DEG2RAD);
-#line 10240 "./reverse_test.c"
+#line 10284 "./reverse_test.c"
   rot_mul(mctr1, mcrotasource, mcrotapsd_monitor);
   rot_transpose(mcrotalogspir, mctr1);
   rot_mul(mcrotapsd_monitor, mctr1, mcrotrpsd_monitor);
@@ -10248,7 +10292,7 @@ void mcinit(void) {
     0,
 #line 126 "reverse_test.instr"
     2 * 0.675);
-#line 10251 "./reverse_test.c"
+#line 10295 "./reverse_test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposapsd_monitor = coords_add(mcposasource, mctc2);
@@ -10285,7 +10329,7 @@ fprintf(stdout, "[%s] Initialize\n", mcinstrument_name);
     percent=1e5*100.0/mcget_ncount();
   }
 }
-#line 10288 "./reverse_test.c"
+#line 10332 "./reverse_test.c"
 #undef minutes
 #undef flag_save
 #undef percent
@@ -10372,7 +10416,7 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
   else if (dE)
     p_init *= 2*dE;
 }
-#line 10375 "./reverse_test.c"
+#line 10419 "./reverse_test.c"
 #undef flux
 #undef gauss
 #undef dlambda
@@ -10429,7 +10473,7 @@ if (xwidth > 0)  {
     { fprintf(stderr,"Slit: %s: Warning: Running with CLOSED slit - is this intentional?? \n", NAME_CURRENT_COMP); }
 
 }
-#line 10432 "./reverse_test.c"
+#line 10476 "./reverse_test.c"
 #undef yheight
 #undef xwidth
 #undef radius
@@ -10484,7 +10528,7 @@ if (xwidth > 0)  {
     }
   }
 }
-#line 10487 "./reverse_test.c"
+#line 10531 "./reverse_test.c"
 #undef restore_neutron
 #undef yheight
 #undef xwidth
@@ -10610,7 +10654,7 @@ if (xwidth > 0)  {
     addDisk(lEnd, 0.0, 2.0, &s); //neutrons will be propagated important if the are in silicon
 	//addEllipsoid(-L, L,p1, -l,+l, 40,&s);
 }
-#line 10613 "./reverse_test.c"
+#line 10657 "./reverse_test.c"
 #undef doubleReflections
 #undef mirror_sidelength
 #undef mirror_width
@@ -10652,22 +10696,11 @@ if (xwidth > 0)  {
 #define branches mcclogspir_branches
 #define doublesided mcclogspir_doublesided
 #define placeholder mcclogspir_placeholder
-#line 559 "LogSpiral.comp"
+#line 603 "LogSpiral.comp"
 {
-	//printf("does this even fucking care\n");
-	logspirp = &logspir;
-    double psi_rad;//=psi*DEG2RAD;
-    double k;//=arctan(psi_rad);
-    double theta_end;
-    double x_end;
-	///////////////////////////////////////////////////////////////////////////
-	/////////////// Initialize the logarithmic spiral
-	///////////////////////////////////////////////////////////////////////////
-	LogSpirinit(logspirp, zmin, zmax, ymin, ymax, psi, phi_rot, mValue, precision, max_iterations, branches, doublesided);
-
-	printf("theta_end%f", logspir.theta_end);
+	populate_scene(&s, branches, doublesided, zmin, zmax, ymin, ymax, psi, phi_rot, mValue);
 }
-#line 10670 "./reverse_test.c"
+#line 10703 "./reverse_test.c"
 #undef placeholder
 #undef doublesided
 #undef branches
@@ -10727,7 +10760,7 @@ if (xwidth > 0)  {
     }
   }
 }
-#line 10730 "./reverse_test.c"
+#line 10763 "./reverse_test.c"
 #undef restore_neutron
 #undef yheight
 #undef xwidth
@@ -10898,7 +10931,7 @@ MCNUM minutes = mccorigin_minutes;
     if (flag_save) mcsave(NULL);
   }
 }
-#line 10901 "./reverse_test.c"
+#line 10934 "./reverse_test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -11179,7 +11212,7 @@ MCNUM flux = mccsource_div_flux;
   vy = tan_v * vz;
   vx = tan_h * vz;
 }
-#line 11182 "./reverse_test.c"
+#line 11215 "./reverse_test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -11313,7 +11346,7 @@ MCNUM yheight = mccslit_yheight;
     else
         SCATTER;
 }
-#line 11316 "./reverse_test.c"
+#line 11349 "./reverse_test.c"
 }   /* End of slit=Slit() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -11447,7 +11480,7 @@ MCNUM restore_neutron = mccpsd_before_optic_restore_neutron;
     RESTORE_NEUTRON(INDEX_CURRENT_COMP, x, y, z, vx, vy, vz, t, sx, sy, sz, p);
   }
 }
-#line 11450 "./reverse_test.c"
+#line 11483 "./reverse_test.c"
 }   /* End of psd_before_optic=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -11639,7 +11672,7 @@ MCNUM doubleReflections = mccflat_ellipse_horizontal_doubleReflections;
 
     SCATTER;
 }
-#line 11642 "./reverse_test.c"
+#line 11675 "./reverse_test.c"
 }   /* End of flat_ellipse_horizontal=FlatEllipse_finite_mirror() SETTING parameter declarations. */
 #undef transmit
 #undef alpha
@@ -11765,24 +11798,15 @@ MCNUM mValue = mcclogspir_mValue;
 MCNUM branches = mcclogspir_branches;
 MCNUM doublesided = mcclogspir_doublesided;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 577 "LogSpiral.comp"
+#line 609 "LogSpiral.comp"
 {
   part_log n;
-
   part_log *ptrn;
   ptrn = &n;
   //PROP_Z0;this not needed to allow neutrons from the other side to hit the logspiral
   //printf("\n z=%f y=%f x=%f vz=%f vy=%f vx=%f \n", z, y, x, vz, vy, vx);
   n = Neutron2Dinit(ptrn, z, y, x, vz, vy, vx);//puts all of the neutron info into the pointer ptrn pointing to n
-  for (int ii = 0; ii < 100; ii++){
-	  //propagate neutron to the next interaction
-	  interaction = evaluate_first_interaction(logspir, ptrn);
-	  //printf("ii %d , %d \n", ii, 0);
-	  //printf("after interaction z = %f, x = %f, vz = %f, vx = %f\n", returnz(n), returnx(n), returnvz(n), returnvx(n));
-	  if (interaction==0){
-		  break;
-	  }
-  }
+  run_scene(s, &n, 10);
   z  = returnz(n);
   vz = returnvz(n);
   y  = returny(n);
@@ -11794,7 +11818,7 @@ MCNUM placeholder = mcclogspir_placeholder;
 
 
 }
-#line 11797 "./reverse_test.c"
+#line 11821 "./reverse_test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -11928,7 +11952,7 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
     RESTORE_NEUTRON(INDEX_CURRENT_COMP, x, y, z, vx, vy, vz, t, sx, sy, sz, p);
   }
 }
-#line 11931 "./reverse_test.c"
+#line 11955 "./reverse_test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -12040,7 +12064,7 @@ MCNUM minutes = mccorigin_minutes;
 
   }
 }
-#line 12043 "./reverse_test.c"
+#line 12067 "./reverse_test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -12080,7 +12104,7 @@ MCNUM restore_neutron = mccpsd_before_optic_restore_neutron;
     &PSD_N[0][0],&PSD_p[0][0],&PSD_p2[0][0],
     filename);
 }
-#line 12083 "./reverse_test.c"
+#line 12107 "./reverse_test.c"
 }   /* End of psd_before_optic=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -12119,7 +12143,7 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
     &PSD_N[0][0],&PSD_p[0][0],&PSD_p2[0][0],
     filename);
 }
-#line 12122 "./reverse_test.c"
+#line 12146 "./reverse_test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -12162,7 +12186,7 @@ MCNUM minutes = mccorigin_minutes;
     fprintf(stdout, "%g [min] ", difftime(NowTime,StartTime)/60.0);
   fprintf(stdout, "\n");
 }
-#line 12165 "./reverse_test.c"
+#line 12189 "./reverse_test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -12209,7 +12233,7 @@ MCNUM restore_neutron = mccpsd_before_optic_restore_neutron;
   destroy_darr2d(PSD_p);
   destroy_darr2d(PSD_p2);
 }
-#line 12208 "./reverse_test.c"
+#line 12232 "./reverse_test.c"
 }   /* End of psd_before_optic=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -12252,7 +12276,7 @@ MCNUM doubleReflections = mccflat_ellipse_horizontal_doubleReflections;
     //Mainly Writes Inline Detector Data
     finishSimulation(&s);
 }
-#line 12250 "./reverse_test.c"
+#line 12274 "./reverse_test.c"
 }   /* End of flat_ellipse_horizontal=FlatEllipse_finite_mirror() SETTING parameter declarations. */
 #undef transmit
 #undef alpha
@@ -12297,7 +12321,7 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
   destroy_darr2d(PSD_p);
   destroy_darr2d(PSD_p2);
 }
-#line 12293 "./reverse_test.c"
+#line 12317 "./reverse_test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -12343,7 +12367,7 @@ MCNUM minutes = mccorigin_minutes;
 {
   
 }
-#line 12338 "./reverse_test.c"
+#line 12362 "./reverse_test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -12367,7 +12391,7 @@ MCNUM minutes = mccorigin_minutes;
   line(0,0,0,0,0.2,0);
   line(0,0,0,0,0,0.2);
 }
-#line 12362 "./reverse_test.c"
+#line 12386 "./reverse_test.c"
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -12414,7 +12438,7 @@ MCNUM flux = mccsource_div_flux;
     dashed_line(0,0,0, -focus_xw/2, focus_yh/2,dist, 4);
   }
 }
-#line 12409 "./reverse_test.c"
+#line 12433 "./reverse_test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -12467,7 +12491,7 @@ MCNUM yheight = mccslit_yheight;
     circle("xy",0,0,0,radius);
   }
 }
-#line 12462 "./reverse_test.c"
+#line 12486 "./reverse_test.c"
 }   /* End of slit=Slit() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -12502,7 +12526,7 @@ MCNUM restore_neutron = mccpsd_before_optic_restore_neutron;
     (double)xmin, (double)ymax, 0.0,
     (double)xmin, (double)ymin, 0.0);
 }
-#line 12497 "./reverse_test.c"
+#line 12521 "./reverse_test.c"
 }   /* End of psd_before_optic=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -12569,7 +12593,7 @@ MCNUM doubleReflections = mccflat_ellipse_horizontal_doubleReflections;
     }
 
 }
-#line 12564 "./reverse_test.c"
+#line 12588 "./reverse_test.c"
 }   /* End of flat_ellipse_horizontal=FlatEllipse_finite_mirror() SETTING parameter declarations. */
 #undef transmit
 #undef alpha
@@ -12602,12 +12626,12 @@ MCNUM mValue = mcclogspir_mValue;
 MCNUM branches = mcclogspir_branches;
 MCNUM doublesided = mcclogspir_doublesided;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 612 "LogSpiral.comp"
+#line 635 "LogSpiral.comp"
 {
 
 
 }
-#line 12602 "./reverse_test.c"
+#line 12626 "./reverse_test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -12642,7 +12666,7 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
     (double)xmin, (double)ymax, 0.0,
     (double)xmin, (double)ymin, 0.0);
 }
-#line 12637 "./reverse_test.c"
+#line 12661 "./reverse_test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p

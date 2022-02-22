@@ -108,7 +108,7 @@ COMPONENT logspir = LogSpiral(
     psi=1.55, 
     branches=branches, 
     phi_rot=phi_rot, 
-    mValue=11, 
+    mValue=100, 
     doublesided=doublesided)
 AT (0, 0, 0.675*2) RELATIVE source
 ROTATED (0, 180, 0) RELATIVE source
