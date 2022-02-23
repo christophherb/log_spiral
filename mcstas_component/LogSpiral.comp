@@ -70,7 +70,7 @@ double getRandomLog() {
 ///////////////////////////////////////////////////////////////////////////
 /////////////// Some Structures
 ///////////////////////////////////////////////////////////////////////////
-
+//TODO alle funktionen declarieren und dann reihenfolge egal
 
 
 //! Stucture to represent one Branch of the spiral
@@ -79,18 +79,16 @@ typedef struct LogSpir{
     double zmax;
 	double ymin;
 	double ymax;
-    double psi;
-    double psi_rad;//=psi*DEG2RAD;
     double k;//=arctan(psi_rad);
-    double precision;
-    double theta_end;//rad
-	double mValue;
-	double mindistance; //minimum distace between two mirrors, useful for the minimum time 
-	double phi_rot;//the rotation of the spiral branch
-	int inverted;//whether the spiral is reflected at the x-axis
+    double precision;// which precision should be reached by the various newton methods
+    double theta_end;//angle (rad) under which the endpoint of the spiral is seen
+	double mValue;//m-value of the mirror coatings
+	double mindistance; //minimum distace between two mirrors, useful for the minimum time
+	double phi_rot;//the rotation of the spiral branch with respect to the optical axis
+	int mirrored;//whether the spiral is mirrored the optical axis
 } LogSpir;
 
-//! Structure to save all the branches
+//! Structure to save all the LogSpiral branches and count them
 typedef struct SceneLog{
 	int number_spirals;
 	LogSpir all_branches[NUMBERMIRROR];
@@ -103,8 +101,8 @@ typedef struct SceneLog{
 @param m Value of the mirror
 @return Probability of reflection from 0 to 1
 */
-typedef struct part_log{
-	double z;
+typedef struct part_log{//TODO add spins for polarization
+	double customz;
 	double y;
 	double x;
 	double vz;
@@ -124,16 +122,16 @@ typedef struct BranchTime{
 
 /*! \brief Function to create a Neutron part_log
 @param *neutron pointer to neutron, which is initialized
-@param z z-cooridinate of neutron
+@param z z-cooridinate of neutron (m)
 @param y
 @param x
-@param vz speed in z-direction
+@param vz speed in z-direction (m/s)
 @param vy
 @param vx
 @return part_log Neutron
 */
 part_log Neutron2Dinit(part_log *neutron, double z, double y, double x, double vz, double vy, double vx){//creating the neutron TODO polarization
-	neutron->z = z;
+	neutron->customz = z;
 	neutron->x = x;
 	neutron->vz = vz;
 	neutron->vx = vx;
@@ -142,9 +140,9 @@ part_log Neutron2Dinit(part_log *neutron, double z, double y, double x, double v
 	return *neutron;
 }
 
-
+//funny functions to return the neutron's parameters, this should be easier I think?
 double returnz(part_log n){
-	return n.z;
+	return n.customz;
 }
 
 double returnvz(part_log n){
@@ -170,7 +168,7 @@ double returnvx(part_log n){
 //can we do this with mcstas builtins?
 void propagate_neutron(part_log *incoming, double dt){
 	incoming->x += incoming->vx*dt;
-	incoming->z += incoming->vz*dt;
+	incoming->customz += incoming->vz*dt;
 	incoming->y += incoming->vy*dt;
 }
 
@@ -217,28 +215,32 @@ double calcSupermirrorReflectivityLog(double q, double m){
     weight = R_0*0.5*(1 - tanh(arg))*(1 - alpha*(q - Q_c) + beta*(q - Q_c)*(q - Q_c));
     return weight;
 }
-/*! \brief Function returns initneut by theta_rot and stores the result in *neutron
+/*! \brief Function rotates initneut by theta_rot around (0, 1, 0) and stores the result in *neutron
 @param *neutron pointer to neutron part_log
 @param initneut neutron which is rotated
-@param theta_rot angle by which to rotate initneut
+@param theta_rot (rad) angle by which to rotate initneut
 */
 void rotate_vector(part_log *neutron, part_log initneut, double theta_rot){//rotating the initneut by thetarot and saving the result in neutron
 	double sint = sin(theta_rot);
 	double cost = cos(theta_rot);
-	double new_z  = cost*initneut.z - sint*initneut.x;	
-	double new_x  = sint*initneut.z + cost*initneut.x;
-	double new_vz = cost*initneut.vz - sint*initneut.vx;	
+	double new_z  = cost*initneut.customz - sint*initneut.x;
+	double new_x  = sint*initneut.customz + cost*initneut.x;
+	double new_vz = cost*initneut.vz - sint*initneut.vx;
 	double new_vx = sint*initneut.vz + cost*initneut.vx;
-	neutron->z = new_z;
+	neutron->customz = new_z;
 	neutron->x = new_x;
 	neutron->vz= new_vz;
     neutron->vx= new_vx;
 
 }
 
-
+/*! \brief Function rotates initneut by 180 deg around (0, 0, 1)/(mirror zy-plane) and stores the result in *neutron
+@param *neutron pointer to neutron part_log
+@param initneut neutron which is rotated
+@param invert; if +1 does nothing to the vector, if -1 inverts x component of vector
+*/
 void mirror_vector(part_log *neutron, part_log initneut, double invert){
-	neutron->z = initneut.z;
+	neutron->customz = initneut.customz;
 	neutron->x = initneut.x*invert;
 	neutron->vz = initneut.vz;
 	neutron->vx = initneut.vx*invert;
@@ -252,38 +254,34 @@ void mirror_vector(part_log *neutron, part_log initneut, double invert){
 @param *neutron the neutron which to rotate
 @param mValue m-value of the surface
 */
-void reflect_neutron(part_log normal, part_log *neutron, double mValue){
-	//check whether reflection happens and if it does change neutron properties accordingly
-
+void reflect_neutron(part_log *neutron, part_log normal, double mValue){
 	double vz = neutron->vz;
 	double vx = neutron->vx;
 	double vdotn = vz*normal.vz + vx*normal.vx;
 	double weight = calcSupermirrorReflectivityLog(V2Q_conic*2*vdotn, mValue);
-	if (getRandomLog() <= weight){
-		vx = vx-2*vdotn*normal.vx;
-		vz = vz-2*vdotn*normal.vz;
-		neutron->vz = vz;
-		neutron->vx = vx;
+	if (rand01() <= weight){//TODO mcstas random function verwendet
+		neutron->vx = vx-2*vdotn*normal.vx;
+		neutron->vz = vz-2*vdotn*normal.vz;
 	}
 	else{
-		;
+		;//if no reflection takes place at the mirror we dont have to change the direction
 	}
-	
+
 }
 
 
 
 /*! \brief Function for Newton Raphson
 @param logspir Logarithmic spiral
-@param theta angle theta
-@return function of which to find a root for 
+@param theta (rad) angle theta
+@return function of which to find a root for
 */
 double newton_theta_end(LogSpir logspir, double theta){
 	return cos(theta)*logspir.zmin*exp(logspir.k*theta)-logspir.zmax;
 }
 /*! \brief Function for Newton Raphson
 @param logspir Logarithmic spiral
-@param theta angle theta
+@param theta (rad) angle theta
 @return derivative of function
 */
 double newton_theta_end_derivative(LogSpir logspir, double theta){
@@ -308,7 +306,7 @@ double return_r(double theta, double k, double zmin){
 part_log return_cart_coordsspiral(LogSpir logspir, double theta){
 	struct part_log n;
 	double r = return_r(theta, logspir.k, logspir.zmin);
-	n.z = cos(theta)*r;
+	n.customz = cos(theta)*r;
 	n.x = sin(theta)*r;
 	return n;
 }
@@ -321,7 +319,7 @@ double return_approx_theta_end(LogSpir logspir){
     return log(logspir.zmax/logspir.zmin)/logspir.k;
 };
 
-/*! \brief Function returns the precise angle of the end of the spiral by Newton-Raphson
+/*! \brief Function returns the precise angle of the end of the spiral by Newton-Raphson, needed for the alignment of spirals
 @param logspir Logarithmic spiral
 @param max_iterations number of iterations after which the algorithms gives up
 @return precise angle if convergence is reached, -10 else
@@ -342,15 +340,13 @@ double return_precise_theta_end(LogSpir logspir, int max_iterations){
 
 /*! \brief Function returns normal vector to the logspir
 @param logspir Logarithmic spiral
-@param max_iterations number of iterations after which the algorithms gives up
-@return precise angle if convergence is reached, -10 else
+@param theta (rad) angle of the point on the spiral at which the normal vector is to be determined
 */
 part_log return_normal_vec(LogSpir logspir, double theta){//returns the normalized normal vector to the surface
 	part_log n2d;
-	double k = logspir.k;
-	double prefac = 1/sqrt(1+k*k);
-	n2d.vz = (cos(theta)+k*sin(theta))*prefac;
-	n2d.vx = (sin(theta)-k*cos(theta))*prefac;
+	double prefac = 1/sqrt(1+logspir.k*logspir.k);
+	n2d.vz = (cos(theta)+logspir.k*sin(theta))*prefac;
+	n2d.vx = (sin(theta)-logspir.k*cos(theta))*prefac;
 	return n2d;
 }
 
@@ -367,19 +363,17 @@ part_log return_normal_vec(LogSpir logspir, double theta){//returns the normaliz
 @param max_iterations (1) number of the maximum iterations for Newton-Raphson
 @param branches number of spiral branches
 */
-void LogSpirinit(LogSpir *logspir, double zmin, double zmax, double ymin, double ymax, double psi, double phi_rot, double mValue, double precision, double max_iterations, int inverted){
+void LogSpirinit(LogSpir *logspir, double zmin, double zmax, double ymin, double ymax, double psi, double phi_rot, double mValue, double precision, double max_iterations, int mirrored){
 	logspir->zmin = zmin;
 	logspir->zmax = zmax;
 	logspir->ymin = ymin;
 	logspir->ymax = ymax;
-	logspir->psi = psi;
-	logspir->psi_rad = psi*DEG2RAD;
 	logspir->mValue = mValue;
-	logspir->k = 1/tan(logspir->psi_rad);
+	logspir->k = 1/tan(psi*DEG2RAD);
 	logspir->precision = precision;
 	logspir->theta_end = return_precise_theta_end(*logspir, max_iterations);
 	logspir->phi_rot = phi_rot;
-	logspir->inverted = inverted;
+	logspir->mirrored = mirrored;
 	logspir->mindistance = 2*sin(logspir->theta_end/2)*zmin;
 }
 
@@ -412,8 +406,8 @@ double return_approx_theta_int(LogSpir logspir, part_log neutron){//approximatin
 	if (denom==0){
 		return logspir.theta_end/2; // neutron parallel to the spiral arm
 	}else{
-		lam = ((-logspir.zmin+neutron.z)*m-neutron.x)/denom;//approximate mirror as a line calculate the intersection and determine the angle
-		z_int = neutron.z+neutron.vz*lam;
+		lam = ((-logspir.zmin+neutron.customz)*m-neutron.x)/denom;//approximate mirror as a line calculate the intersection and determine the angle
+		z_int = neutron.customz+neutron.vz*lam;
 		//printf("z intersection %f x intersection %f lam %f theta_end %f\n", z_int, x_int, lam, logspir.theta_end);
 		if (z_int >= logspir.zmin && z_int <= logspir.zmax){
 				x_int = neutron.x+neutron.vx*lam;
@@ -434,7 +428,7 @@ double return_approx_theta_int(LogSpir logspir, part_log neutron){//approximatin
 double return_precise_theta_int(LogSpir logspir, part_log n, double max_iterations){//
 	double theta_0, theta_n;
 	double m = n.vx/n.vz;
-	double x0 = n.x-n.z/n.vz*n.vx;
+	double x0 = n.x-n.customz/n.vz*n.vx;
 	double f(double theta){//function which to minimize via Newton-Raphson
 		return logspir.zmin*exp(logspir.k*theta)*(sin(theta)-m*cos(theta))-x0;
 	}
@@ -459,7 +453,6 @@ double return_precise_theta_int(LogSpir logspir, part_log n, double max_iteratio
 		}
 		theta_0 = theta_n;
 	}
-	//printf("exhausted \n");
 	return -10;
 }
 
@@ -476,9 +469,9 @@ float return_intersection_time(LogSpir logspir, part_log neutron, double theta_i
 	if (theta_int > 0){
 		int_coord = return_cart_coordsspiral(logspir, theta_int);//cart coords of the interaction
 		////printf("z of spiral %f z0 = %f\n", int_coord.z, z0);
-		t = (int_coord.z-neutron.z)/neutron.vz;
+		t = (int_coord.customz-neutron.customz)/neutron.vz;
 		y = neutron.y+neutron.vy*t;
-		if (t*t > 0.25*logspir.mindistance*logspir.mindistance/(neutron.vz*neutron.vz+neutron.vx*neutron.vx) && 
+		if (t*t > 0.25*logspir.mindistance*logspir.mindistance/(neutron.vz*neutron.vz+neutron.vx*neutron.vx) &&
 		y >= logspir.ymin && y <= logspir.ymax){//minimum distance between two mirrors (sensible distance, smaller makes no sense)
 			return t;
 		}
@@ -496,15 +489,15 @@ BranchTime return_first_interaction(SceneLog s, part_log init_neut){
 	double t;
 	double theta_rot;
 	double theta_int;
-	int inverted;
+	int mirrored;
 	BranchTime brt;//stores the first interaction and saves the according branch
 	part_log rotneut;
 	brt.t = -1.0;
 	for (int kk=0; kk<s.number_spirals; kk++){//go through all the orientations
 		theta_rot = -s.all_branches[kk].phi_rot;
-		inverted = s.all_branches[kk].inverted;
+		mirrored = s.all_branches[kk].mirrored;
 		//rotate and mirror the neutron according to the branches orientation
-		mirror_vector(&rotneut, init_neut, inverted);
+		mirror_vector(&rotneut, init_neut, mirrored);
 		rotate_vector(&rotneut, rotneut, theta_rot);
 		theta_int = return_precise_theta_int(s.all_branches[kk], rotneut, 10);
 		//printf("thetaint %f vz berfore %f\n", theta_int, init_neut.vz);
@@ -526,13 +519,13 @@ int evaluate_first_interaction(SceneLog s, part_log *neutron){
 	double t_prop;
 	double theta_int;
 	double phi_rot;
-	int inverted;
+	int mirrored;
 	part_log n;
 	part_log n_rot;
 	t_prop = brt.t;
 	theta_int = brt.theta_int;//the angle (unrotated) in which the interaction takes place
 	phi_rot =  brt.logspir.phi_rot;//the angle between the the logspir and the McStas Co-ordinate system
-	inverted = brt.logspir.inverted;//is the spiral mirrored?
+	mirrored = brt.logspir.mirrored;//is the spiral mirrored?
 	//printf("proptime %f", t_prop);
 	if (t_prop < 0){
 		return 0;
@@ -542,8 +535,8 @@ int evaluate_first_interaction(SceneLog s, part_log *neutron){
 		propagate_neutron(neutron, t_prop);//propagate neutron
 		n = return_normal_vec(brt.logspir, theta_int);
 		rotate_vector(&n_rot, n, phi_rot);//
-		mirror_vector(&n_rot, n_rot, inverted);
-		reflect_neutron(n_rot, neutron, brt.logspir.mValue);
+		mirror_vector(&n_rot, n_rot, mirrored);
+		reflect_neutron(neutron, n_rot, brt.logspir.mValue);
 		return 1;
 	}
 }
@@ -559,7 +552,7 @@ void run_scene(SceneLog s, part_log *n, int max_interactions){
 }
 
 /*! \brief Function to populate the scene with mirrors, this can be changed if one wants to use a non standard geometry
-@param *s pointer to Scene to populate	
+@param *s pointer to Scene to populate
 @param branches number of branches per side
 @param doublesided spirals on both sides of the optical axis
 @param zmin zmin of all spirals
@@ -567,20 +560,20 @@ void run_scene(SceneLog s, part_log *n, int max_interactions){
 @param ymin
 @param ymax
 @param psi (deg) angle of attack for all mirrors
-@param phi_rot (rad) angle between the mirrors 
+@param phi_rot (rad) angle between the mirrors
 @param m m-value of coating of all mirrors
 */
 void populate_scene(SceneLog *s, int branches, int doublesided, float zmin, float zmax, float ymin, float ymax, float psi, float phi_rot, float m){
 	LogSpir logspir;
 	LogSpirinit(&logspir, zmin, zmax, ymin, ymax, psi, 0, m, 1e-7, 10, 1);
-	double phi_rot_base = phi_rot == 0 ? logspir.theta_end: phi_rot; 
-	//LogSpirinit(logspir, zmin, zmax, ymin, ymax, psi, phi, m,  1e-7, 10, inverted);
+	double phi_rot_base = phi_rot == 0 ? logspir.theta_end: phi_rot;
+	//LogSpirinit(logspir, zmin, zmax, ymin, ymax, psi, phi, m,  1e-7, 10, mirrored);
 	initialize_scene(s);
 	for (int kk = 0; kk<((doublesided+1)*branches); kk++){//TODO reading orientations from a file?
 			logspir.phi_rot = kk<branches ? kk*phi_rot_base: (kk-branches)*phi_rot_base;
-			logspir.inverted = kk<branches ? 1: -1;
+			logspir.mirrored = kk<branches ? 1: -1;
 			add_logspir(s, logspir);
-			printf("phi %f, inv %d total_spir %d\n", s->all_branches[kk].phi_rot, s->all_branches[kk].inverted, s->number_spirals);
+			printf("phi %f, inv %d total_spir %d\n", s->all_branches[kk].phi_rot, s->all_branches[kk].mirrored, s->number_spirals);
 		}
 }
 
@@ -600,7 +593,7 @@ DECLARE
 %}
 
 INITIALIZE
-%{	
+%{
 	populate_scene(&s, branches, doublesided, zmin, zmax, ymin, ymax, psi, phi_rot, mValue);
 %}
 	// Test user input for illegal values
@@ -608,14 +601,12 @@ INITIALIZE
 TRACE
 %{
   part_log n;
-  part_log *ptrn;
-  ptrn = &n;
   //PROP_Z0;this not needed to allow neutrons from the other side to hit the logspiral
   //printf("\n z=%f y=%f x=%f vz=%f vy=%f vx=%f \n", z, y, x, vz, vy, vx);
-  n = Neutron2Dinit(ptrn, z, y, x, vz, vy, vx);//puts all of the neutron info into the pointer ptrn pointing to n
+  n = Neutron2Dinit(&n, z, y, x, vz, vy, vx);//puts all of the neutron info into the pointer ptrn pointing to n
   run_scene(s, &n, 10);
-  z  = returnz(n);
-  vz = returnvz(n);
+  z  = n.customz;
+  vz = returnvz(n);//TODO ersetzen
   y  = returny(n);
   vy = returnvy(n);
   x  = returnx(n);
