@@ -6,16 +6,18 @@ plt.style.use("/home/cherb/LRZSync/Doktorarbeit/Vorlagen_Verschiedenes/stylelibs
 #from point radially diverging
 p=1
 if p:
-    log = LogSpir(0.1, 0.3, 5, 5, precision=1e-8)
+    log = LogSpir(1, 3, 5, 5, phi_rot=0.0965243188196*180/3.1415, precision=1e-6)
+    log.double_sided = 1
     print(log.theta_end)
-    fig, ax = plt.subplots(1, figsize=(15,15))
+    fig, ax = plt.subplots(1, figsize=(6, 4))
 
     theta_end = log.theta_end
     theta_range = np.linspace(0, theta_end, 10001)
     z, x = log.return_cart_coords(theta_range)
 
-    for slope in np.linspace(0, 0.5, 51):
-        neutron = Neutron(0, 0, 1, slope)
+    for slope in np.linspace(-0.5, 0.5, 51):
+        neutron = Neutron(6, -slope*6, -1, slope)
+        #print('incoming {} {}'.format(neutron.vz, neutron.vx))
         path, neutron = log.propagate_neutron(neutron)
         z_path, x_path = zip(*[k[:2] for k in path])
         ax.set_aspect('equal')
@@ -38,6 +40,11 @@ if p:
 
         ax.plot([log.zstart, log.zend], [0, log.xend], label='approx', linestyle='-', marker=' ')#approximation of the non-rotated mirror, determines
         ax.plot(z_r, x_r, color='black', label='mirror', marker=' ', linestyle='-', linewidth=2)
+        if log.double_sided:
+            cos = np.cos(branch*theta_end)
+            sin = np.sin(branch*theta_end)
+            z_r, x_r = cos*z - sin*x, sin*z + cos*x
+            ax.plot(z_r, -x_r, color='black', label='mirror', marker=' ', linestyle='-', linewidth=2)    
         #the initial mirror
     ax.set_xlabel("$z$ (m)")
     ax.set_ylabel("$x$ (m)")
@@ -46,7 +53,7 @@ if p:
     plt.show()
 
 #a cover of neutrons coming from the outside
-p=1
+p=0
 if p:
     log = LogSpir(1, 3, 5, 5, precision=1e-8)
     print(log.theta_end)

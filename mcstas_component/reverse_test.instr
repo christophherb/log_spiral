@@ -24,14 +24,22 @@
 * %E
 *******************************************************************************/
 DEFINE INSTRUMENT logspir_test(
-    source_width = 0.001,
+    source_width = 0.000001,
     source_divergence = 3.7116398665896515,
     L_source = 5,
     dL = 2,
-    branches = 5,
     flux = 1,
-    phi_rot=0,
-    doublesided=1,
+    zmin = 0.15,
+	zmax = 0.3,
+	ymin = -1,
+	ymax = 1,
+	psi = 1,
+	phi_rot = 0,
+	precision = 1e-7,
+	max_iterations = 10,
+	mValue = 6.2,
+	branches = 5,
+	doublesided = 1,
     placeholder = 0
 )
 
@@ -53,13 +61,13 @@ COMPONENT source = Arm()
 AT (0, 0, 0) RELATIVE PREVIOUS
 
 COMPONENT source_div = Source_div(
-    yheight=0.05,
+    yheight=0.024,
     xwidth=source_width,
     focus_aw=source_divergence,//source_divergence,//maximum divergence horizontal0.000000001,//
     focus_ah=0.000001,//guide_width,0.000000001,//
     lambda0=L_source,
     flux=1e11,
-    dlambda=dL)
+    dlambda=0)
 AT (0, 0, 0) RELATIVE source
 ROTATED (0, 0, 0) RELATIVE source
 
@@ -99,16 +107,36 @@ COMPONENT flat_ellipse_horizontal = FlatEllipse_finite_mirror(
 AT (0, 0, 0.675) RELATIVE source
 ROTATED (0, 0, 0) RELATIVE source
 
+COMPONENT slit1 = Slit(
+    xmin=-0.0198,//0.002,
+    xmax=0.0198,
+    ymin=-1,
+    ymax=1
+
+)
+AT (0, 0, 0.675+0.060001) RELATIVE source
+ROTATED (0, 0, 0) RELATIVE source
+
+COMPONENT psd_monitor_beforelog = PSD_monitor(
+    nx=1001,
+    ny=1001,
+    filename="psdbeforelog.dat",
+    xwidth=0.5,
+    yheight=0.5,
+    restore_neutron=1)
+AT (0, 0, 0.675+0.0601) RELATIVE source
+ROTATED (0, 0, 0) RELATIVE source
+
 //Group of logspirs, first to hit is first to interact
 COMPONENT logspir = LogSpiral(
-    zmin=0.15, 
-    zmax= 0.3, 
+    zmin=0.15,
+    zmax= 0.3,
     ymin=-0.05,
     ymax= 0.05,
-    psi=1.55, 
-    branches=branches, 
-    phi_rot=phi_rot, 
-    mValue=100, 
+    psi=psi,
+    branches=branches,
+    phi_rot=phi_rot,
+    mValue=6.2,
     doublesided=doublesided)
 AT (0, 0, 0.675*2) RELATIVE source
 ROTATED (0, 180, 0) RELATIVE source
@@ -117,11 +145,11 @@ ROTATED (0, 180, 0) RELATIVE source
 
 
 COMPONENT psd_monitor = PSD_monitor(
-    nx=500,
-    ny=500,
+    nx=1001,
+    ny=1001,
     filename="psdafterlog.dat",
-    xwidth=0.1,
-    yheight=0.1,
+    xwidth=0.026,
+    yheight=0.026,
     restore_neutron=1)
 AT (0, 0, 2*0.675) RELATIVE source
 ROTATED (0, 0, 0) RELATIVE source

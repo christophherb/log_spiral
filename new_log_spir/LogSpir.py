@@ -5,7 +5,7 @@ rad2deg = 180/np.pi
 deg2rad = 1/rad2deg
 V2Q_conic = 1.58825361e-3
 
-def calc_supermirror_reflectivity(m, q, alpha=2.85, W=0.002):
+def calc_supermirror_reflectivity(m, q, alpha=2.5, W=0.004):
     Q_c = 0.0218
     arg = 0
     beta = 0
@@ -102,14 +102,14 @@ class LogSpir:
         self.psi_rad = psi*deg2rad
         self.k = 1/np.tan(self.psi_rad) #helper variable showing in the formula
         self.precision=precision
-        self.m = 4
+        self.m = 6.2
         #function and derivative are used to find the angle theta at which the z_value of the spiral equals zend
         self.function = lambda theta: np.cos(theta)*self.zstart*np.exp(self.k*theta)-self.zend
         self.derivative = lambda theta: self.zstart*np.exp(self.k*theta)*(np.cos(theta)*self.k-np.sin(theta))
         self.theta_end = self.return_precise_theta_end(self.zend)
         self.phi_rot = self.theta_end if phi_rot == 0 else phi_rot*deg2rad
-        self.orientations = [(kk*phi_rot, kk%2) for kk in range(branches)]
         self.xend = self.zend*np.tan(self.theta_end)
+        self.double_sided = 1
         self.branches = branches
 
     def return_r(self, theta):
@@ -216,10 +216,12 @@ class LogSpir:
         z0, x0, vz0, vx0 = neutron.return_coords() #would it be better to feed the
         z1, x1, vz1, vx1 = self.zstart, 0, self.zend-self.zstart, self.xend
         zint, xint = self.return_intersect_lines(z0, x0, vz0, vx0, z1, x1, vz1, vx1)
+        if zint < self.zstart or zint > self.zend:
+            return None
         approx_theta = np.arctan(xint/zint)
         return approx_theta
 
-    def return_precise_theata_int(self, z, x, zdir, xdir, max_iterations=10, precision=None):
+    def return_precise_theata_int(self, z, x, zdir, xdir, max_iterations=20, precision=None):
         """returns the precise angle under which the neutron hits the logspiral
 
         Args:
@@ -245,15 +247,19 @@ class LogSpir:
             return self.zstart*np.exp(k*theta)*(np.cos(theta)*(1-k*m)+np.sin(theta)*(k+m))
 
         theta0 = self.return_approx_theta_int(Neutron(z, x, zdir, xdir))
-
+        if theta0 is None:
+            return None
         for ind in range(max_iterations):
             thetan = theta0 - function(theta0)/derivative(theta0)
+            if ind > 3 and (thetan < 0 or thetan > self.theta_end):
+                print('inbetween?')
+                return None
             if abs(thetan-theta0) < precision:
-                if 0 < thetan < self.theta_end:
+                if 0 <= thetan < self.theta_end:
                     return thetan
                 return None
             theta0 = thetan
-        #print('non applicable')
+        print('non applicable')
         return None
 
     def return_inters_coords(self, neutron: Neutron):
@@ -301,7 +307,6 @@ class LogSpir:
         """
         vdotn = nz*zdir + nx*xdir
         weight = calc_supermirror_reflectivity(self.m, vdotn*2*V2Q_conic)
-        #print(weight)
         if rn.random()<weight:
             rz, rx = zdir-2*vdotn*nz, xdir-2*vdotn*nx #classic reflected direction
             return rz, rx
@@ -342,6 +347,18 @@ class LogSpir:
         rot_xdir = sin*zdir + cos*xdir
         return rot_z0, rot_x0, rot_zdir, rot_xdir
 
+    def mirror_neutron(self, z0, x0, zdir, xdir, mirrored):
+        """inverts neutron at the xy plane
+
+        Args:
+            z0 (float): 
+            x0 (_type_): _description_
+            zdir (_type_): _description_
+            xdir (_type_): _description_
+            theta_rot (_type_): _description_
+        """
+        return z0, x0*mirrored, zdir, xdir*mirrored
+
     def calc_interaction_time(self, z0, x0, vz, vx, theta_int):
         """calculates and returns the time till interaction of the neutron with the logspir returns None if no valid time is found
 
@@ -357,8 +374,8 @@ class LogSpir:
         if theta_int:
             z_int, _ = self.return_cart_coords(theta_int)
             t = (z_int - z0)/vz
-            if t > 0.00001:#need to make sure this is positive
-                return t 
+            if t > 0.25*(self.zstart*self.phi_rot)/(vx**2+vz**2)**0.5:#need to make sure this is positive
+                return t
         return None # else we dont return anything
 
 
@@ -374,19 +391,29 @@ class LogSpir:
         z0, x0, zdir, xdir = neutron.return_coords()
         #to calculate the intersection of the neutron with each branch of the polarizer, rotate the neutron accordingly
         min_time, branchind, theta_min = float('inf'), None, None
-        for ind in range(self.branches):
-            theta_rot = -ind*self.phi_rot
-            zi, xi, z_diri, x_diri = self.rotate_neutron(z0, x0, zdir, xdir, theta_rot)#instead of rotating the device clockwise, rotate the neutron in the opposite direction
+        for ind in range(self.branches*(self.double_sided+1)):
+            if ind >= self.branches:
+                indc = ind - self.branches
+                mirrored = -1
+                theta_rot = -(indc)*self.phi_rot
+            else:
+                indc = ind
+                mirrored = 1
+                theta_rot = -ind*self.phi_rot
+            #print("what is this ", theta_rot, mirrored)
+            zi, xi, z_diri, x_diri = self.mirror_neutron(z0, x0, zdir, xdir, mirrored)
+            zi, xi, z_diri, x_diri = self.rotate_neutron(zi, xi, z_diri, x_diri, theta_rot)#instead of rotating the device clockwise, rotate the neutron in the opposite direction
             theta_int = self.return_precise_theata_int(zi, xi, z_diri, x_diri)
             t = self.calc_interaction_time(zi, xi, z_diri, x_diri, theta_int)
             if t:#only if the new time exists and is greater than 0
                 if t < min_time:
                     min_time = t
-                    branchind = ind
+                    branchind = indc
                     theta_min = theta_int
+                    min_mirrored = mirrored
         #now if they exist return them all
         if branchind != None:
-            return branchind, min_time, theta_min
+            return branchind, min_time, theta_min, min_mirrored
         else:
             return None
 
@@ -404,11 +431,14 @@ class LogSpir:
         if not branchtime:
             return None
         #to calculate the intersection of the neutron with each branch of the polarizer,
-        branch, time, theta = branchtime
-        theta_rot = self.theta_end*branch
+        branch, time, theta, mirrored = branchtime
+        theta_rot = self.phi_rot*branch
         z_int, x_int, vz, vx = neutron.prop_neutron(time) #neutron is propagated
         nz, nx = self.return_normal_vec(theta)
+
         nz, nx = self.rotate_vector(nz, nx, theta_rot)#normal vector returned has to be rotated according to the branch it originates from
+
+        nz, nx, _, _ = self.mirror_neutron(nz, nx, 0, 0, mirrored)
         rz, rx = self.return_reflected_dir(nz, nx, vz, vx)
         return Neutron(z_int, x_int, rz, rx)# return the reflected neutron
 

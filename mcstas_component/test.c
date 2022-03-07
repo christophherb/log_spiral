@@ -2,14 +2,14 @@
  * Format:     ANSI C source code
  * Creator:    McStas <http://www.mcstas.org>
  * Instrument: test.instr (logspir_test)
- * Date:       Mon Feb  7 16:12:26 2022
+ * Date:       Thu Feb 24 13:34:23 2022
  * File:       ./test.c
  * Compile:    cc -o logspir_test.out ./test.c 
  * CFLAGS=
  */
 
 
-#define MCCODE_STRING "McStas 2.6.1 - May. 04, 2020"
+#define MCCODE_STRING "McStas 2.7 - Nov. 27, 2020"
 #define FLAVOR "mcstas"
 #define FLAVOR_UPPER "MCSTAS"
 #define MC_USE_DEFAULT_MAIN
@@ -29,7 +29,7 @@
 * %Identification
 * Written by: KN
 * Date:    Aug 29, 1997
-* Release: McStas 2.6.1
+* Release: McStas 2.7
 * Version: $Revision$
 *
 * Runtime system header for McStas/McXtrace.
@@ -112,15 +112,15 @@
 
 /* the version string is replaced when building distribution with mkdist */
 #ifndef MCCODE_STRING
-#define MCCODE_STRING "McStas 2.6.1 - May. 04, 2020"
+#define MCCODE_STRING "McStas 2.7 - Nov. 27, 2020"
 #endif
 
 #ifndef MCCODE_DATE
-#define MCCODE_DATE "May. 04, 2020"
+#define MCCODE_DATE "Nov. 27, 2020"
 #endif
 
 #ifndef MCCODE_VERSION
-#define MCCODE_VERSION "2.6.1"
+#define MCCODE_VERSION "2.7"
 #endif
 
 #ifndef MCCODE_NAME
@@ -750,7 +750,7 @@ NXhandle nxhandle;
 #ifndef MCSTAS_R_H
 #define MCSTAS_R_H "$Revision$"
 
-/* Following part is only embedded when not redundent with mcstas.h ========= */
+/* Following part is only embedded when not redundant with mcstas.h ========= */
 
 #ifndef MCCODE_H
 
@@ -1462,7 +1462,7 @@ MCDETECTOR mcdetector_statistics(
   MCDETECTOR detector)
 {
 
-  if (!detector.p1 || !detector.m || !detector.filename)
+  if (!detector.p1 || !detector.m)
     return(detector);
   
   /* compute statistics and update MCDETECTOR structure ===================== */
@@ -5340,7 +5340,7 @@ int mctraceenabled = 1;
 #else
 int mctraceenabled = 0;
 #endif
-#define MCSTAS "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../"
+#define MCSTAS "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../"
 int mcdefaultmain = 1;
 char mcinstrument_name[] = "logspir_test";
 char mcinstrument_source[] = "test.instr";
@@ -5353,7 +5353,7 @@ void mcfinally(void);
 void mcdisplay(void);
 
 /* Shared user declarations for all components 'LogSpiral'. */
-#line 52 "LogSpiral.comp"
+#line 58 "LogSpiral.comp"
 /*****************************************************************************
 *
 * McStas, neutron ray-tracing package
@@ -6321,8 +6321,8 @@ double Table_Value(t_Table Table, double X, long j)
       } /* end for Index */
   }
 
-  Y1 = Table_Index(Table,Index-1,j);
-  Y2 = Table_Index(Table,Index  ,j);
+  Y1 = Table_Index(Table,Index, j);
+  Y2 = Table_Index(Table,Index+1, j);
 
   if (!strcmp(Table.method,"linear")) {
     ret = Table_Interp1d(X, X1,Y1, X2,Y2);
@@ -6944,297 +6944,540 @@ void TableReflecFunc(double mc_pol_q, t_Table *mc_pol_par, double *mc_pol_r) {
 
 /* end of ref-lib.c */
 
-double dt; // time to propagate the neutron onto the mirror surface
-double interaction; //if no interaction can take place neutrons are propagated onto the next component
-	///////////////////////////////////////////////////////////////////////////
+
+#define NUMBERMIRROR 20
+#define V2Q_conic 1.58825361e-3
+#define Q2V_conic 629.622368
+#define DEG2RAD 3.1415927 / 180
+
+///////////////////////////////////////////////////////////////////////////
 /////////////// Some Structures
 ///////////////////////////////////////////////////////////////////////////
-typedef struct LogSpir{
-    double zstart;
-    double zend;
-    double psi;
-    double psi_rad;//=psi*DEG2RAD;
-    double k;//=arctan(psi_rad);
-    double precision;
-    double theta_end;
-    double x_end;
-	double mindistance;
-	int branches;
-} LogSpir;//logspiral will be our surface to reflect from; nice
 
-typedef struct part_log{
-	double z;
-	double y;
-	double x;
-	double vz;
-	double vy;
-	double vx;
-} part_log;//Structure for a 2D part_log
+		//! Stucture to represent one Branch of the spiral
+typedef struct _LogSpir{
+	double zmin;
+	double zmax;
+	double ymin;
+	double ymax;
+	double k;			//=cotan(psi_rad);
+	double precision;	// which precision should be reached by the various newton methods
+	double theta_end;	// angle (rad) under which the endpoint of the spiral is seen
+	double mValue;		// m-value of the mirror coatings
+	double mindistance; // minimum distace between two mirrors, useful for the minimum time
+	double phi_rot;		// the rotation of the spiral branch with respect to the optical axis
+	int mirrored;		// whether the spiral is mirrored the optical axis
+	} LogSpir;
 
-typedef struct BranchTime{
-	double phi_rot;//rotation angle of the branch
-	double t;//time of interaction
-	double theta_int;//angle under which the interaction takes place
-} BranchTime;//Structure for a 2D part_log
+	//! Structure to collect all the LogSpiral branches and count them
+typedef struct _SceneLog{
+	int number_spirals;
+	LogSpir all_branches[NUMBERMIRROR];
+} SceneLog;
 
-double returnz(part_log n){
-	return n.z;
-}
+	//! Structure resembling a neutron with position direction and spin (sometimes misused as a vector)
+typedef struct _part_log{
+	double customz;
+	double customy;
+	double customx;
+	double customvz;
+	double customvy;
+	double customvx;
+	double customsx;
+	double customsy;
+	double customsz;
+} part_log; // Structure for a 2D part_log
 
-double returnvz(part_log n){
-	return n.vz;
-}
+typedef struct _BranchTime{
+	LogSpir logspir;  // the logspiral branch the neutron interacts with
+	double t;		  // time of interaction
+	double theta_int; // angle under which the interaction takes place
+} BranchTime;		  // Structure for a 2D part_log
 
-double returny(part_log n){
-	return n.y;
-}
+	double getRandomLog();
+	part_log Neutron2Dinit(part_log * neutron, double z, double y, double x, double vz, double vy, double vx);
+	void propagate_neutron(part_log * incoming, double dt);
+	double calcSupermirrorReflectivityLog(double q, double m);
+	void rotate_vector(part_log * neutron, part_log initneut, double theta_rot);
+	void mirror_vector(part_log * neutron, part_log initneut, double invert);
+	void reflect_neutron(part_log * neutron, part_log normal, double mValue);
+	double newton_theta_end(LogSpir logspir, double theta);
+	double newton_theta_end_derivative(LogSpir logspir, double theta);
+	double return_r(double theta, double k, double zmin);
+	part_log return_cart_coordsspiral(LogSpir logspir, double theta);
+	double return_approx_theta_end(LogSpir logspir);
+	double return_precise_theta_end(LogSpir logspir, int max_iterations);
+	part_log return_normal_vec(LogSpir logspir, double theta);
+	void LogSpirinit(LogSpir * logspir, double zmin, double zmax, double ymin, double ymax,
+					 double psi, double phi_rot, double mValue, double precision, double max_iterations, int mirrored);
+	void initialize_scene(SceneLog * s);
+	void add_logspir(SceneLog * s, LogSpir logspir);
+	double return_approx_theta_int(LogSpir logspir, part_log neutron);
+	double return_precise_theta_int(LogSpir logspir, part_log n, double max_iterations);
+	float return_intersection_time(LogSpir logspir, part_log neutron, double theta_int);
+	BranchTime return_first_interaction(SceneLog s, part_log init_neut);
+	int evaluate_first_interaction(SceneLog s, part_log * neutron);
+	void run_scene(SceneLog s, part_log * n, int max_interactions);
+	void populate_scene(SceneLog * s, int branches, int doublesided,
+						float zmin, float zmax, float ymin, float ymax, float psi, float phi_rot, float m);
 
-double returnvy(part_log n){
-	return n.vy;
-}
+	double getRandomLog()
+	{
+		return (double)lrand48() / RAND_MAX;
+	}
 
-double returnx(part_log n){
-	return n.x;
-}
+	///////////////////////////////////////////////////////////////////////////
+	/////////////// Some auxiliary functions
+	///////////////////////////////////////////////////////////////////////////
 
-double returnvx(part_log n){
-	return n.vx;
-}
+	/*! \brief Function to create a Neutron part_log
+	@param *neutron pointer to neutron, which is initialized
+	@param z z-cooridinate of neutron (m)
+	@param y
+	@param x
+	@param vz speed in z-direction (m/s)
+	@param vy
+	@param vx
+	@return part_log Neutron
+	*/
+	part_log Neutron2Dinit(part_log * neutron, double z, double y, double x, double vz, double vy, double vx){ // creating the neutron TODO polarization
+		neutron->customz = z;
+		neutron->customx = x;
+		neutron->customvz = vz;
+		neutron->customvx = vx;
+		neutron->customy = y;
+		neutron->customvy = vy;
+		return *neutron;
+	}
 
-void rotate_vector(part_log *neutron, part_log initneut, double theta_rot){
-	double sint = sin(theta_rot);
-	double cost = cos(theta_rot);
-	neutron->z = cost*initneut.z - sint*initneut.x;
-    neutron->x = sint*initneut.z + cost*initneut.x;
-    neutron->vz= cost*initneut.vz - sint*initneut.vx;
-    neutron->vx= sint*initneut.vz + cost*initneut.vx;
-}
+	/*! \brief Function to propagate the neutron in a straight line; McStas Builtin?
 
+	@param *incoming pointer to incoming neutron, which is propagated
+	@param dt (s) time increment, in which the neutron is propagated
+	*/
+	void propagate_neutron(part_log * incoming, double dt){
+		incoming->customx += incoming->customvx * dt;
+		incoming->customz += incoming->customvz * dt;
+		incoming->customy += incoming->customvy * dt;
+	}
 
+	/*! \brief Function returns the supermirrorreflectivity for a given perpendicular impulse q and m-value of the mirror coating
 
-part_log Neutron2Dinit(part_log *neutron, double z, double y, double x, double vz, double vy, double vx){
-	neutron->z = z;
-	neutron->x = x;
-	neutron->vz = vz;
-	neutron->vx = vx;
-	neutron->y = y;
-	neutron->vy = vy;
-	return *neutron;
-}
-
-void reflected_direction(part_log normal, part_log *neutron){
-	double vz = neutron->vz;
-	double vx = neutron->vx;
-	double vdotn = vz*normal.vz + vx*normal.vx;
-	vx = vx-2*vdotn*normal.vx;
-	vz = vz-2*vdotn*normal.vz;
-	neutron->vz = vz;
-	neutron->vx = vx;
-}
-
-
-
-///////////////////////////////////////////////////////////////////////////
-/////////////// Collision handling functions
-///////////////////////////////////////////////////////////////////////////
-double newton_theta_end(LogSpir logspir, double theta){
-	return cos(theta)*logspir.zstart*exp(logspir.k*theta)-logspir.zend;
-}
-double newton_theta_end_derivative(LogSpir logspir, double theta){
-	return logspir.zstart*exp(logspir.k*theta)*(cos(theta)*logspir.k-sin(theta));
-}
-
-double return_r(double theta, double k, double zstart){
-    return zstart*exp(k*theta);
-};
-
-part_log return_cart_coordsspiral(LogSpir logspir, double theta){
-	struct part_log n;
-	double r = return_r(theta, logspir.k, logspir.zstart);
-	n.z = cos(theta)*r;
-	n.x = sin(theta)*r;
-	return n;
-}
-
-double return_approx_theta_end(LogSpir logspir){
-	//printf("logspir k %f\n", logspir.k);
-    return log(logspir.zend/logspir.zstart)/logspir.k;
-};
-
-double return_precise_theta_end(LogSpir logspir, int max_iterations){
-	double theta_0 = return_approx_theta_end(logspir);
-	double theta_n;
-	for (int ii; ii < max_iterations; ii++){
-		//printf("theta0=%f",theta_0);
-		theta_n = theta_0 -  newton_theta_end(logspir, theta_0)/newton_theta_end_derivative(logspir, theta_0);
-		if (fabs(theta_0-theta_n)<logspir.precision){
-			return theta_n;
+	@param q perp impulse component
+	@param m Value of the mirror
+	@return Probability of reflection from 0 to 1
+	*/
+	double calcSupermirrorReflectivityLog(double q, double m){
+		double arg;
+		double R_0 = 0.995;
+		double Q_c = 0.0218;
+		double beta = 0;
+		double alpha = 2.5;
+		double W = 0.004;
+		double weight = 1.0; // neutron weight to be transformed
+		q = fabs(q);
+		if (m >= 10){ // above m=10 we just assume perfect reflectivity for the mirror
+			return weight;
+		}
+		if (W == 0 && alpha == 0)
+		{ // approximation for relfectivity curve
+			m = m * 0.9853 + 0.1978;
+			W = -0.0002 * m + 0.0022;
+			alpha = 0.2304 * m + 5.0944;
+			beta = -7.6251 * m + 68.1137;
+			if (m <= 3){
+				alpha = m;
+				beta = 0;
 			}
-		theta_0 = theta_n;
+		}
+		arg = W > 0 ? (q - m * Q_c) / W : 11;
+		if (arg > 10 || m <= 0 || Q_c <= 0 || R_0 <= 0){
+			weight = 0.0;
+			return weight;
+		}
+
+		if (m < 1){
+			Q_c *= m;
+			m = 1;
+		}
+
+		if (q <= Q_c){
+			weight = R_0;
+			return weight;
+		}
+		weight = R_0 * 0.5 * (1 - tanh(arg)) * (1 - alpha * (q - Q_c) + beta * (q - Q_c) * (q - Q_c));
+		return weight;
 	}
-	return -10.0;
-}
-
-void LogSpirinit(LogSpir *logspir, double zstart, double zend, double psi, double precision, double max_iterations, int branches){
-	logspir->zstart = zstart;
-	logspir->zend = zend;
-	logspir->psi = psi;
-	logspir->psi_rad = psi*DEG2RAD;
-	logspir->k = 1/tan(logspir->psi_rad);
-	logspir->precision = precision;
-	logspir->branches = branches;
-	logspir->theta_end = return_precise_theta_end(*logspir, max_iterations);
-	logspir->mindistance = 2*sin(logspir->theta_end/2)*zstart;
-}
-
-
-double return_approx_theta_int(LogSpir logspir){//approximating by intersection with line seems comp expensive + if the intersection is far away
-	return logspir.theta_end/2;
-}
-
-double return_precise_theta_int(LogSpir logspir, part_log n, double max_iterations){//
-	double theta_0, theta_n;
-	double m = n.vx/n.vz;
-	double x0 = n.x-n.z/n.vz*n.vx;
-	double f(double theta){
-		return logspir.zstart*exp(logspir.k*theta)*(sin(theta)-m*cos(theta))-x0;
+	/*! \brief Function rotates initneut by theta_rot around (0, 1, 0) and stores the result in *neutron
+	@param *neutron pointer to neutron in which the result is stored
+	@param initneut neutron which is rotated
+	@param theta_rot (rad) angle by which to rotate initneut
+	*/
+	void rotate_vector(part_log * neutron, part_log initneut, double theta_rot){ // rotating the initneut by thetarot and saving the result in neutron
+		double sint = sin(theta_rot);
+		double cost = cos(theta_rot);
+		double new_z = cost * initneut.customz - sint * initneut.customx;
+		double new_x = sint * initneut.customz + cost * initneut.customx;
+		double new_vz = cost * initneut.customvz - sint * initneut.customvx;
+		double new_vx = sint * initneut.customvz + cost * initneut.customvx;
+		neutron->customz = new_z;
+		neutron->customx = new_x;
+		neutron->customvz = new_vz;
+		neutron->customvx = new_vx;
 	}
-	double f_derivative(double theta){
-		return logspir.zstart*exp(logspir.k*theta)*(cos(theta)*(1-logspir.k*m)+ sin(theta)*(logspir.k+m));
+
+	/*! \brief Function rotates initneut by 180 deg around (0, 0, 1)/(mirror zy-plane) and stores the result in *neutron
+	@param *neutron pointer to neutron in which the result is stored
+	@param initneut neutron which is rotated/mirrored
+	@param invert; if +1 does nothing to the vector, if -1 inverts x component of vector
+	*/
+	void mirror_vector(part_log * neutron, part_log initneut, double invert){
+		neutron->customz = initneut.customz;
+		neutron->customx = initneut.customx * invert;
+		neutron->customvz = initneut.customvz;
+		neutron->customvx = initneut.customvx * invert;
+		neutron->customvy = initneut.customvy;
+		neutron->customy = initneut.customy;
 	}
-	theta_0 = return_approx_theta_int(logspir);
-	for (int ii; ii<max_iterations; ii++ ){
-		theta_n = theta_0-f(theta_0)/f_derivative(theta_0);
-		if (fabs(theta_n-theta_0)<logspir.precision){
-			if ((0<theta_n)&&(theta_n<logspir.theta_end)){
+
+	/*! \brief Function determines probability of reflection at surface and changes velocities accordingly
+	@param *neutron the neutron which to rotate
+	@param normal normalvector of surface (only vx, vz and vy are used as directions)
+	@param mValue m-value of the surface
+	*/
+	void reflect_neutron(part_log * neutron, part_log normal, double mValue){
+		double vz = neutron->customvz;
+		double vx = neutron->customvx;
+		double vdotn = vz * normal.customvz + vx * normal.customvx;
+		double weight = calcSupermirrorReflectivityLog(V2Q_conic * 2 * vdotn, mValue);
+		if (rand01() <= weight){
+			neutron->customvx = vx - 2 * vdotn * normal.customvx;
+			neutron->customvz = vz - 2 * vdotn * normal.customvz;
+		}
+		else{
+			; // if no reflection takes place at the mirror we dont have to change the direction
+		}
+	}
+
+	/*! \brief Function for Newton Raphson determination of angle theta at the end of the spiral
+		zmax
+	@param logspir Logarithmic spiral
+	@param theta (rad) angle theta
+	@return function of which to find a root for
+	*/
+	double newton_theta_end(LogSpir logspir, double theta){
+		return cos(theta) * logspir.zmin * exp(logspir.k * theta) - logspir.zmax;
+	}
+	/*! \brief Function for Newton Raphson
+	@param logspir Logarithmic spiral
+	@param theta (rad) angle theta
+	@return derivative of function
+	*/
+	double newton_theta_end_derivative(LogSpir logspir, double theta){
+		return logspir.zmin * exp(logspir.k * theta) * (cos(theta) * logspir.k - sin(theta));
+	}
+
+	/*! \brief Function returns r = zmin*exp(theta*cotan(psi))
+
+	@param logspir logarithmic spiral struct
+	@param theta angle under which the point is seen
+	@return r coordinate
+	*/
+	double return_r(double theta, double k, double zmin){
+		return zmin * exp(k * theta);
+	};
+
+	/*! \brief Function returns carthesian Coordinates of a point on the logspiral
+	@param logspir Logarithmic spiral
+	@param theta angle under which the point is seen
+	@return part_log with z and x corrdinate corresponding to z and x coordinates of the spiral
+	*/
+	part_log return_cart_coordsspiral(LogSpir logspir, double theta){
+		part_log n;
+		double r = return_r(theta, logspir.k, logspir.zmin);
+		n.customz = cos(theta) * r;
+		n.customx = sin(theta) * r;
+		return n;
+	}
+
+	/*! \brief Function returns an approximation of the angle of the end of the spiral to be refined by Newton-Raphson
+	@param logspir Logarithmic spiral
+	@return approximation of theta_end
+	*/
+	double return_approx_theta_end(LogSpir logspir){
+		return log(logspir.zmax / logspir.zmin) / logspir.k;
+	};
+
+	/*! \brief Function returns the precise angle of the end of the spiral by Newton-Raphson, needed for the alignment of spirals
+	@param logspir Logarithmic spiral
+	@param max_iterations number of iterations after which the algorithms gives up
+	@return precise angle if convergence is reached, -10 else
+	*/
+	double return_precise_theta_end(LogSpir logspir, int max_iterations){
+		double theta_0 = return_approx_theta_end(logspir);
+		double theta_n;
+		for (int ii; ii < max_iterations; ii++){
+			// printf("theta0=%f",theta_0);
+			theta_n = theta_0 - newton_theta_end(logspir, theta_0) / newton_theta_end_derivative(logspir, theta_0);
+			if (fabs(theta_0 - theta_n) < logspir.precision){
 				return theta_n;
 			}
-			return -10;
+			theta_0 = theta_n;
 		}
-		theta_0 = theta_n;
-
-
+		return -10.0;
 	}
-	return -10;
-}
 
-float return_intersection_time(LogSpir logspir, double z0, double x0, double vz, double vx, double theta_int){
-	part_log int_coord;
-	double t;
-	if (theta_int > 0){
-		int_coord = return_cart_coordsspiral(logspir, theta_int);//cart coords of the interaction
-		////printf("z of spiral %f z0 = %f\n", int_coord.z, z0);
-		t = (int_coord.z-z0)/vz;
-		if (t*t > 0.25*logspir.mindistance*logspir.mindistance/(vz*vz+vx*vx)){//minimum distance between two mirrors (sensible distance, smaller makes no sense)
-			//printf("z of spiral %f z0 = %f vz = %f, t = %f \n ", int_coord.z, z0, vz, t);
-			return t;
+	/*! \brief Function returns normal vector to the logspir
+	@param logspir Logarithmic spiral
+	@param theta (rad) angle of the point on the spiral at which the normal vector is to be determined
+	*/
+	part_log return_normal_vec(LogSpir logspir, double theta){ // returns the normalized normal vector to the surface
+		part_log n2d;
+		double prefac = 1 / sqrt(1 + logspir.k * logspir.k);
+		n2d.customvz = (cos(theta) + logspir.k * sin(theta)) * prefac;
+		n2d.customvx = (sin(theta) - logspir.k * cos(theta)) * prefac;
+		return n2d;
+	}
+
+	/*! \brief Function initializes a Logarithmic Spiral with all information necessary to calculate reflection
+	@param logspir pointer of LogSpir object which to initialize
+	@param zmin z-coordinate (m) at which the spiral starts
+	@param zmax z-coordinate (m) at which the spiral ends
+	@param ymin minimum y-coordinate (m) at which the mirror is realized
+	@param ymax maximum y-coordinate (m) at which the mirror is realized
+	@param psi angle (deg) under which the spiral is hit by neutrons originating from the origin
+	@param phi_rot (rad) angle under which the individual spiral branches are rotated by
+	@param mValue m-value of the reflecting surfaces
+	@param precision (1) precision of the many Newton-Raphson implementations
+	@param max_iterations (1) number of the maximum iterations for Newton-Raphson
+	@param branches number of spiral branches
+	*/
+	void LogSpirinit(LogSpir * logspir, double zmin, double zmax, double ymin, double ymax,
+		double psi, double phi_rot, double mValue, double precision, double max_iterations, int mirrored){
+		logspir->zmin = zmin;
+		logspir->zmax = zmax;
+		logspir->ymin = ymin;
+		logspir->ymax = ymax;
+		logspir->mValue = mValue;
+		logspir->k = 1 / tan(psi * DEG2RAD);
+		logspir->precision = precision;
+		logspir->theta_end = return_precise_theta_end(*logspir, max_iterations);
+		logspir->phi_rot = phi_rot;
+		logspir->mirrored = mirrored;
+		logspir->mindistance = 2 * sin(logspir->theta_end / 2) * zmin;
+	}
+	/*! \brief Function initializes a scene to hold all the LogSpiral objects
+	@param s pointer to the to initialize scene
+	*/
+	void initialize_scene(SceneLog * s){
+		s->number_spirals = 0;
+	}
+
+	/*! \brief Function adding a single LogSpiral object to the scene and incrementing the counter
+	@param s pointer to the to initialize scene
+	*/
+	void add_logspir(SceneLog * s, LogSpir logspir){
+		s->all_branches[s->number_spirals] = logspir;
+		s->number_spirals += 1;
+	}
+
+	///////////////////////////////////////////////////////////////////////////
+	/////////////// Functions assisting in the reflection
+	///////////////////////////////////////////////////////////////////////////
+
+	/*! \brief Function returns the approximate angle of intersection spiral to be refined by Newton-Raphson
+	@param logspir Logarithmic spiral
+	*/
+	double return_approx_theta_int(LogSpir logspir, part_log neutron){ // approximating by intersection with line seems comp expensive + if the intersection is far away
+		part_log *mirror_approx;
+		double denom;
+		double lam;
+		double z_int;
+		double x_int;
+		double m = logspir.zmax * tan(logspir.theta_end) / (logspir.zmax - logspir.zmin);
+		denom = neutron.customvx - neutron.customvz * m;
+		if (denom == 0){
+			return logspir.theta_end / 2; // neutron parallel to the spiral arm
 		}
-	}
-	return -1.0;
-}
-
-
-
-
-BranchTime return_first_interaction(LogSpir logspir, float z0, float x0, float vz, float vx){
-	double t;
-	double min_time = -1;
-	double theta_rot;
-	double theta_rot_min = -1;
-	double theta_int;
-	double theta_int_min = -1;
-
-	BranchTime brt;
-	part_log init_neut;
-	init_neut = Neutron2Dinit(&init_neut, z0, 0, x0, vz, 0, vx);//don't need y for this so we just put it to zero
-	part_log rotneut;
-	for (int kk=0; kk<logspir.branches; kk++){//instead of rotating the device we rotate neutron to calculate the intersection time--> lowest wins
-		theta_rot = -kk*logspir.theta_end;
-		//rotate the rotneut
-		rotate_vector(&rotneut, init_neut, theta_rot);
-		theta_int = return_precise_theta_int(logspir, rotneut, 10);
-		//printf("thetaint %f vz berfore %f\n", theta_int, init_neut.vz);
-		t = return_intersection_time(logspir, rotneut.z, rotneut.x, rotneut.vz, rotneut.vx, theta_int);
-		if (t>0){
-			if (t<min_time || min_time<0){
-				min_time = t;
-				theta_rot_min = theta_rot;
-				theta_int_min = theta_int;
+		else{
+			lam = ((-logspir.zmin + neutron.customz) * m - neutron.customx) / denom; // approximate mirror as a line calculate the intersection and determine the angle
+			z_int = neutron.customz + neutron.customvz * lam;
+			// printf("z intersection %f x intersection %f lam %f theta_end %f\n", z_int, x_int, lam, logspir.theta_end);
+			if (z_int >= logspir.zmin && z_int <= logspir.zmax){
+				x_int = neutron.customx + neutron.customvx * lam;
+				// printf("init theta %f theta_end/2 %f\n", atan((x_int)/(z_int)), logspir.theta_end/2);
+				return atan((x_int) / (z_int));
 			}
 		}
-
+		return -10; // if the intersection is not on the line return the False Value
 	}
-	//
-//printf("phi rot %f, theta_int %f, time %f", theta_rot_min, theta_int_min, min_time);
-	brt.phi_rot = (theta_rot_min);
-	brt.theta_int = (theta_int_min);
-	brt.t = min_time;
-	return brt;
 
-}
-
-part_log return_normal_vec(LogSpir logspir, double theta){//returns the normalized normal vector to the surface
-	part_log n2d;
-	double k = logspir.k;
-	double prefac = 1/sqrt(1+k*k);
-	n2d.vz = (cos(theta)+k*sin(theta))*prefac;
-	n2d.vx = (sin(theta)-k*cos(theta))*prefac;
-	return n2d;
-}
-
-void reflect_neutron(part_log *incoming, part_log normal){
-
-}
-
-void propagate_neutron(part_log *incoming, double dt){
-	incoming->x += incoming->vx*dt;
-	incoming->z += incoming->vz*dt;
-	incoming->y += incoming->vy*dt;
-}
-
-int evaluate_first_interaction(LogSpir logspir, part_log *neutron){
-	BranchTime brt;
-	brt = return_first_interaction(logspir, neutron->z, neutron->x, neutron->vz, neutron->vx);
-	double t_prop;
-	double theta_int;
-	double phi_rot;
-	part_log n;
-	part_log n_rot;
-	t_prop = brt.t;
-	theta_int = brt.theta_int;
-	phi_rot = brt.phi_rot;
-	//printf("proptime %f", t_prop);
-	if (t_prop < 0){
-		return 0;
+	/*! \brief Function returns the precise angle of intersection by Newton-Raphson
+	@param logspir Logarithmic spiral
+	@param n neutron impinging on the mirror branch
+	@param max_iterations maximum numbers of iterations after which Newton gives up
+	@return angle of intersection if convergence is reached -10 else
+	*/
+	double return_precise_theta_int(LogSpir logspir, part_log n, double max_iterations){ //
+		double theta_0, theta_n;
+		double m = n.customvx / n.customvz;
+		double x0 = n.customx - n.customz / n.customvz * n.customvx;
+		double f(double theta){ // function which to minimize via Newton-Raphson
+			return logspir.zmin * exp(logspir.k * theta) * (sin(theta) - m * cos(theta)) - x0;
+		}
+		double f_derivative(double theta){ // derivative of the function for Newton-Raphson
+			return logspir.zmin * exp(logspir.k * theta) * (cos(theta) * (1 - logspir.k * m) + sin(theta) * (logspir.k + m));
+		}
+		theta_0 = return_approx_theta_int(logspir, n);
+		if (theta_0 < -9){
+			return -10;
+		}
+		for (int ii; ii < max_iterations; ii++){
+			theta_n = theta_0 - f(theta_0) / f_derivative(theta_0);
+			if (ii > 1 && (theta_n < 0 || theta_n > logspir.theta_end)){
+				return -10;
+			}
+			if (fabs(theta_n - theta_0) < logspir.precision){
+				if ((0 < theta_n) && (theta_n < logspir.theta_end)){ // if the intersection theta is outside the bounds of the spiral--> no interaction
+					return theta_n;
+				}
+				// printf("no htis\n");
+				return -10;
+			}
+			theta_0 = theta_n;
+		}
+		return -10;
 	}
-	else{
-		//if the time is valid we propagate the neutron to the surface
-		propagate_neutron(neutron, t_prop);//propagate neutron
-		n = return_normal_vec(logspir, theta_int);
-		rotate_vector(&n_rot, n, -phi_rot);//
-		reflected_direction(n_rot, neutron);
-		return 1;
+
+	/*! \brief Function returns the time until interaction, only if interaction is possible, i.e., neutron hits mirror (ycoord)
+	@param logspir Logarithmic spiral
+	@param neutron intersecting neutron
+	@param theta_int angle of intersection
+	@return time (s) if the intersection takes place, -10 else
+	*/
+	float return_intersection_time(LogSpir logspir, part_log neutron, double theta_int){
+		part_log int_coord;
+		double t;
+		double y;
+		if (theta_int > 0){
+			int_coord = return_cart_coordsspiral(logspir, theta_int); // cart coords of the interaction
+			////printf("z of spiral %f z0 = %f\n", int_coord.z, z0);
+			t = (int_coord.customz - neutron.customz) / neutron.customvz;
+			y = neutron.customy + neutron.customvy * t;
+			if (t * t > 0.25 * logspir.mindistance * logspir.mindistance /
+							(neutron.customvz * neutron.customvz + neutron.customvx * neutron.customvx) &&
+				y >= logspir.ymin && y <= logspir.ymax){ // minimum distance between two mirrors (sensible distance, smaller makes no sense)
+				return t;
+			}
+		}
+		return -10.0;
 	}
-}
 
+	/*! \brief Function returns the BranchTime object of the first Interaction
+	@param logspir Logarithmic spiral
+	@param part_log incoming neutron
+	*/
+	BranchTime return_first_interaction(SceneLog s, part_log init_neut){
+		double t;
+		double theta_rot;
+		double theta_int;
+		int mirrored;
+		BranchTime brt; // stores the first interaction and saves the according branch
+		part_log rotneut;
+		brt.t = -1.0;
+		for (int kk = 0; kk < s.number_spirals; kk++){ // go through all the orientations
+			theta_rot = -s.all_branches[kk].phi_rot;
+			mirrored = s.all_branches[kk].mirrored;
+			// rotate and mirror the neutron according to the branches orientation
+			mirror_vector(&rotneut, init_neut, mirrored);
+			rotate_vector(&rotneut, rotneut, theta_rot);
+			theta_int = return_precise_theta_int(s.all_branches[kk], rotneut, 10);
+			// printf("thetaint %f vz berfore %f\n", theta_int, init_neut.vz);
+			t = return_intersection_time(s.all_branches[kk], rotneut, theta_int);
+			if (t > 0){
+				if (t < brt.t || brt.t < 0){
+					brt.t = t;
+					brt.logspir = s.all_branches[kk];
+					brt.theta_int = theta_int;
+				}
+			}
+		}
+		return brt;
+	}
 
+	int evaluate_first_interaction(SceneLog s, part_log * neutron){
+		BranchTime brt;
+		brt = return_first_interaction(s, *neutron);
+		double t_prop;
+		double theta_int;
+		double phi_rot;
+		int mirrored;
+		part_log n;
+		part_log n_rot;
+		t_prop = brt.t;
+		theta_int = brt.theta_int;		 // the angle (unrotated) in which the interaction takes place
+		phi_rot = brt.logspir.phi_rot;	 // the angle between the the logspir and the McStas Co-ordinate system
+		mirrored = brt.logspir.mirrored; // is the spiral mirrored?
+		// printf("proptime %f", t_prop);
+		if (t_prop < 0){
+			return 0;
+		}
+		else{
+			// if the time is valid we propagate the neutron to the surface
+			propagate_neutron(neutron, t_prop); // propagate neutron
+			n = return_normal_vec(brt.logspir, theta_int);
+			rotate_vector(&n_rot, n, phi_rot); //
+			mirror_vector(&n_rot, n_rot, mirrored);
+			reflect_neutron(neutron, n_rot, brt.logspir.mValue);
+			return 1;
+		}
+	}
 
-//double return_time_first_interaction(LogSpir logspir, double theta_int, part_log *n){
-//	double z_int = cos(theta_int)*return_r(theta_int, logspir.k, logspir.zstart);
-//	return z_int/n->vz;
-//}
+	void run_scene(SceneLog s, part_log * n, int max_interactions){
+		int interaction = 1;
+		for (int kk; kk < max_interactions; kk++){
+			interaction = evaluate_first_interaction(s, n);
+			if (interaction == 0){
+				break;
+			}
+		}
+	}
 
+	/*! \brief Function to populate the scene with mirrors, this can be changed if one wants to use a non standard geometry
+	@param *s pointer to Scene to populate
+	@param branches number of branches per side
+	@param doublesided spirals on both sides of the optical axis
+	@param zmin zmin of all spirals
+	@param zmax zmax of all spirals
+	@param ymin
+	@param ymax
+	@param psi (deg) angle of attack for all mirrors
+	@param phi_rot (rad) angle between the mirrors
+	@param m m-value of coating of all mirrors
+	*/
+	void populate_scene(SceneLog * s, int branches, int doublesided, float zmin, float zmax,
+		float ymin, float ymax, float psi, float phi_rot, float m){
+		LogSpir logspir;
+		LogSpirinit(&logspir, zmin, zmax, ymin, ymax, psi, 0, m, 1e-7, 10, 1);
+		double phi_rot_base = phi_rot == 0 ? logspir.theta_end : phi_rot;
+		// LogSpirinit(logspir, zmin, zmax, ymin, ymax, psi, phi, m,  1e-7, 10, mirrored);
+		initialize_scene(s);
+		for (int kk = 0; kk < ((doublesided + 1) * branches); kk++){ // TODO reading orientations from a file?
+			logspir.phi_rot = kk < branches ? kk * phi_rot_base : (kk - branches) * phi_rot_base;
+			logspir.mirrored = kk < branches ? 1 : -1;
+			add_logspir(s, logspir);
+			printf("phi %f, inv %d total_spir %d\n", s->all_branches[kk].phi_rot, s->all_branches[kk].mirrored, s->number_spirals);
+		}
+	}
 
-///////////////////////////////////////////////////////////////////////////
-/////////////// End of functions
-///////////////////////////////////////////////////////////////////////////
-//part_log n;
-
-
-#line 7234 "./test.c"
+	///////////////////////////////////////////////////////////////////////////
+	/////////////// End of functions
+	///////////////////////////////////////////////////////////////////////////
+	// part_log n;
+#line 7477 "./test.c"
 
 /* Shared user declarations for all components 'PSD_monitor'. */
-#line 57 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 57 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
 
 #ifndef ARRAYS_H
 #define ARRAYS_H
@@ -7313,7 +7556,7 @@ void destroy_darr3d(DArray3d a){
 }
 #endif
 
-#line 7316 "./test.c"
+#line 7559 "./test.c"
 
 /* Instrument parameters. */
 MCNUM mcipsource_width;
@@ -7399,12 +7642,17 @@ MCNUM mccsource_div_gauss;
 MCNUM mccsource_div_flux;
 
 /* Setting parameters for component 'logspir' [4]. */
-MCNUM mcclogspir_zstart;
-MCNUM mcclogspir_zend;
+MCNUM mcclogspir_zmin;
+MCNUM mcclogspir_zmax;
+MCNUM mcclogspir_ymin;
+MCNUM mcclogspir_ymax;
 MCNUM mcclogspir_psi;
+MCNUM mcclogspir_phi_rot;
 MCNUM mcclogspir_precision;
 MCNUM mcclogspir_max_iterations;
+MCNUM mcclogspir_mValue;
 MCNUM mcclogspir_branches;
+MCNUM mcclogspir_doublesided;
 MCNUM mcclogspir_placeholder;
 
 /* Setting parameters for component 'psd_monitor' [5]. */
@@ -7433,7 +7681,7 @@ MCNUM mccpsd_monitor_restore_neutron;
 #define percent mccorigin_percent
 #define flag_save mccorigin_flag_save
 #define minutes mccorigin_minutes
-#line 44 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 44 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 #ifndef PROGRESS_BAR
 #define PROGRESS_BAR
 #else
@@ -7444,7 +7692,7 @@ double IntermediateCnts;
 time_t StartTime;
 time_t EndTime;
 time_t CurrentTime;
-#line 7447 "./test.c"
+#line 7695 "./test.c"
 #undef minutes
 #undef flag_save
 #undef percent
@@ -7489,9 +7737,9 @@ time_t CurrentTime;
 #define dlambda mccsource_div_dlambda
 #define gauss mccsource_div_gauss
 #define flux mccsource_div_flux
-#line 69 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 69 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, focus_yh;
-#line 7494 "./test.c"
+#line 7742 "./test.c"
 #undef flux
 #undef gauss
 #undef dlambda
@@ -7520,27 +7768,33 @@ double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, foc
 #define mccompcurname  logspir
 #define mccompcurtype  LogSpiral
 #define mccompcurindex 4
-#define zstart mcclogspir_zstart
-#define zend mcclogspir_zend
+#define zmin mcclogspir_zmin
+#define zmax mcclogspir_zmax
+#define ymin mcclogspir_ymin
+#define ymax mcclogspir_ymax
 #define psi mcclogspir_psi
+#define phi_rot mcclogspir_phi_rot
 #define precision mcclogspir_precision
 #define max_iterations mcclogspir_max_iterations
+#define mValue mcclogspir_mValue
 #define branches mcclogspir_branches
+#define doublesided mcclogspir_doublesided
 #define placeholder mcclogspir_placeholder
-#line 345 "LogSpiral.comp"
-	double dt;
-	double theta_int;
-	LogSpir logspir;
-	LogSpir *logspirp;
-	part_log normal;
-#line 7536 "./test.c"
+#line 593 "LogSpiral.comp"
+	SceneLog s;
+#line 7785 "./test.c"
 #undef placeholder
+#undef doublesided
 #undef branches
+#undef mValue
 #undef max_iterations
 #undef precision
+#undef phi_rot
 #undef psi
-#undef zend
-#undef zstart
+#undef ymax
+#undef ymin
+#undef zmax
+#undef zmin
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -7562,11 +7816,11 @@ double thetah, thetav, sigmah, sigmav, tan_h, tan_v, p_init, dist, focus_xw, foc
 #define xwidth mccpsd_monitor_xwidth
 #define yheight mccpsd_monitor_yheight
 #define restore_neutron mccpsd_monitor_restore_neutron
-#line 62 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 62 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
   DArray2d PSD_N;
   DArray2d PSD_p;
   DArray2d PSD_p2;
-#line 7569 "./test.c"
+#line 7823 "./test.c"
 #undef restore_neutron
 #undef yheight
 #undef xwidth
@@ -7643,14 +7897,14 @@ void mcinit(void) {
   mccorigin_flag_save = 0;
 #line 39 "test.instr"
   mccorigin_minutes = 0;
-#line 7646 "./test.c"
+#line 7900 "./test.c"
 
   SIG_MESSAGE("origin (Init:Place/Rotate)");
   rot_set_rotation(mcrotaorigin,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7653 "./test.c"
+#line 7907 "./test.c"
   rot_copy(mcrotrorigin, mcrotaorigin);
   mcposaorigin = coords_set(
 #line 48 "test.instr"
@@ -7659,7 +7913,7 @@ void mcinit(void) {
     0,
 #line 48 "test.instr"
     0);
-#line 7662 "./test.c"
+#line 7916 "./test.c"
   mctc1 = coords_neg(mcposaorigin);
   mcposrorigin = rot_apply(mcrotaorigin, mctc1);
   mcDEBUG_COMPONENT("origin", mcposaorigin, mcrotaorigin)
@@ -7676,7 +7930,7 @@ void mcinit(void) {
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD,
     (0.0)*DEG2RAD);
-#line 7679 "./test.c"
+#line 7933 "./test.c"
   rot_mul(mctr1, mcrotaorigin, mcrotasource);
   rot_transpose(mcrotaorigin, mctr1);
   rot_mul(mcrotasource, mctr1, mcrotrsource);
@@ -7687,7 +7941,7 @@ void mcinit(void) {
     0,
 #line 52 "test.instr"
     0);
-#line 7690 "./test.c"
+#line 7944 "./test.c"
   rot_transpose(mcrotaorigin, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource = coords_add(mcposaorigin, mctc2);
@@ -7721,7 +7975,7 @@ void mcinit(void) {
   mccsource_div_gauss = 0;
 #line 60 "test.instr"
   mccsource_div_flux = mcipflux;
-#line 7724 "./test.c"
+#line 7978 "./test.c"
 
   SIG_MESSAGE("source_div (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
@@ -7731,7 +7985,7 @@ void mcinit(void) {
     (0)*DEG2RAD,
 #line 63 "test.instr"
     (0)*DEG2RAD);
-#line 7734 "./test.c"
+#line 7988 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotasource_div);
   rot_transpose(mcrotasource, mctr1);
   rot_mul(mcrotasource_div, mctr1, mcrotrsource_div);
@@ -7742,7 +7996,7 @@ void mcinit(void) {
     0,
 #line 62 "test.instr"
     0);
-#line 7745 "./test.c"
+#line 7999 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposasource_div = coords_add(mcposasource, mctc2);
@@ -7756,42 +8010,52 @@ void mcinit(void) {
     /* Component logspir. */
   /* Setting parameters for component logspir. */
   SIG_MESSAGE("logspir (Init:SetPar)");
-#line 73 "test.instr"
-  mcclogspir_zstart = 1;
-#line 73 "test.instr"
-  mcclogspir_zend = 3;
-#line 73 "test.instr"
+#line 74 "test.instr"
+  mcclogspir_zmin = 1;
+#line 75 "test.instr"
+  mcclogspir_zmax = 3;
+#line 76 "test.instr"
+  mcclogspir_ymin = -3;
+#line 77 "test.instr"
+  mcclogspir_ymax = 3;
+#line 78 "test.instr"
   mcclogspir_psi = 5;
-#line 41 "test.instr"
-  mcclogspir_precision = 1e-8;
-#line 42 "test.instr"
+#line 79 "test.instr"
+  mcclogspir_phi_rot = 0;
+#line 80 "test.instr"
+  mcclogspir_precision = 1e-7;
+#line 81 "test.instr"
   mcclogspir_max_iterations = 10;
-#line 73 "test.instr"
-  mcclogspir_branches = mcipbranches;
-#line 44 "test.instr"
+#line 82 "test.instr"
+  mcclogspir_mValue = 10;
+#line 83 "test.instr"
+  mcclogspir_branches = 5;
+#line 84 "test.instr"
+  mcclogspir_doublesided = 1;
+#line 85 "test.instr"
   mcclogspir_placeholder = 0;
-#line 7773 "./test.c"
+#line 8037 "./test.c"
 
   SIG_MESSAGE("logspir (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
-#line 75 "test.instr"
+#line 87 "test.instr"
     (0)*DEG2RAD,
-#line 75 "test.instr"
+#line 87 "test.instr"
     (0)*DEG2RAD,
-#line 75 "test.instr"
+#line 87 "test.instr"
     (0)*DEG2RAD);
-#line 7783 "./test.c"
+#line 8047 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotalogspir);
   rot_transpose(mcrotasource_div, mctr1);
   rot_mul(mcrotalogspir, mctr1, mcrotrlogspir);
   mctc1 = coords_set(
-#line 74 "test.instr"
+#line 86 "test.instr"
     0,
-#line 74 "test.instr"
+#line 86 "test.instr"
     0,
-#line 74 "test.instr"
+#line 86 "test.instr"
     0);
-#line 7794 "./test.c"
+#line 8058 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposalogspir = coords_add(mcposasource, mctc2);
@@ -7805,11 +8069,11 @@ void mcinit(void) {
     /* Component psd_monitor. */
   /* Setting parameters for component psd_monitor. */
   SIG_MESSAGE("psd_monitor (Init:SetPar)");
-#line 81 "test.instr"
+#line 93 "test.instr"
   mccpsd_monitor_nx = 500;
-#line 82 "test.instr"
+#line 94 "test.instr"
   mccpsd_monitor_ny = 500;
-#line 83 "test.instr"
+#line 95 "test.instr"
   if("psdafterlog.dat") strncpy(mccpsd_monitor_filename, "psdafterlog.dat" ? "psdafterlog.dat" : "", 16384); else mccpsd_monitor_filename[0]='\0';
 #line 50 "test.instr"
   mccpsd_monitor_xmin = -0.05;
@@ -7819,34 +8083,34 @@ void mcinit(void) {
   mccpsd_monitor_ymin = -0.05;
 #line 50 "test.instr"
   mccpsd_monitor_ymax = 0.05;
-#line 84 "test.instr"
+#line 96 "test.instr"
   mccpsd_monitor_xwidth = 10;
-#line 85 "test.instr"
+#line 97 "test.instr"
   mccpsd_monitor_yheight = 10;
-#line 86 "test.instr"
+#line 98 "test.instr"
   mccpsd_monitor_restore_neutron = 1;
-#line 7828 "./test.c"
+#line 8092 "./test.c"
 
   SIG_MESSAGE("psd_monitor (Init:Place/Rotate)");
   rot_set_rotation(mctr1,
-#line 88 "test.instr"
+#line 100 "test.instr"
     (0)*DEG2RAD,
-#line 88 "test.instr"
+#line 100 "test.instr"
     (0)*DEG2RAD,
-#line 88 "test.instr"
+#line 100 "test.instr"
     (0)*DEG2RAD);
-#line 7838 "./test.c"
+#line 8102 "./test.c"
   rot_mul(mctr1, mcrotasource, mcrotapsd_monitor);
   rot_transpose(mcrotalogspir, mctr1);
   rot_mul(mcrotapsd_monitor, mctr1, mcrotrpsd_monitor);
   mctc1 = coords_set(
-#line 87 "test.instr"
+#line 99 "test.instr"
     0,
-#line 87 "test.instr"
+#line 99 "test.instr"
     0,
-#line 87 "test.instr"
+#line 99 "test.instr"
     6);
-#line 7849 "./test.c"
+#line 8113 "./test.c"
   rot_transpose(mcrotasource, mctr1);
   mctc2 = rot_apply(mctr1, mctc1);
   mcposapsd_monitor = coords_add(mcposasource, mctc2);
@@ -7871,7 +8135,7 @@ void mcinit(void) {
 #define percent mccorigin_percent
 #define flag_save mccorigin_flag_save
 #define minutes mccorigin_minutes
-#line 57 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 57 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
 IntermediateCnts=0;
 StartTime=0;
@@ -7883,7 +8147,7 @@ fprintf(stdout, "[%s] Initialize\n", mcinstrument_name);
     percent=1e5*100.0/mcget_ncount();
   }
 }
-#line 7886 "./test.c"
+#line 8150 "./test.c"
 #undef minutes
 #undef flag_save
 #undef percent
@@ -7924,7 +8188,7 @@ fprintf(stdout, "[%s] Initialize\n", mcinstrument_name);
 #define dlambda mccsource_div_dlambda
 #define gauss mccsource_div_gauss
 #define flux mccsource_div_flux
-#line 72 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 72 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 {
 sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
   sigmav = DEG2RAD*focus_ah/(sqrt(8.0*log(2.0)));
@@ -7970,7 +8234,7 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
   else if (dE)
     p_init *= 2*dE;
 }
-#line 7973 "./test.c"
+#line 8237 "./test.c"
 #undef flux
 #undef gauss
 #undef dlambda
@@ -8000,36 +8264,36 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
 #define mccompcurname  logspir
 #define mccompcurtype  LogSpiral
 #define mccompcurindex 4
-#define zstart mcclogspir_zstart
-#define zend mcclogspir_zend
+#define zmin mcclogspir_zmin
+#define zmax mcclogspir_zmax
+#define ymin mcclogspir_ymin
+#define ymax mcclogspir_ymax
 #define psi mcclogspir_psi
+#define phi_rot mcclogspir_phi_rot
 #define precision mcclogspir_precision
 #define max_iterations mcclogspir_max_iterations
+#define mValue mcclogspir_mValue
 #define branches mcclogspir_branches
+#define doublesided mcclogspir_doublesided
 #define placeholder mcclogspir_placeholder
-#line 353 "LogSpiral.comp"
+#line 597 "LogSpiral.comp"
 {
-	//printf("does this even fucking care\n");
-	logspirp = &logspir;
-    double psi_rad;//=psi*DEG2RAD;
-    double k;//=arctan(psi_rad);
-    double theta_end;
-    double x_end;
-	///////////////////////////////////////////////////////////////////////////
-	/////////////// Initialize the logarithmic spiral
-	///////////////////////////////////////////////////////////////////////////
-	LogSpirinit(logspirp, zstart, zend, psi, precision, max_iterations, branches);
-
-	printf("theta_end%f", logspir.theta_end);
+	populate_scene(&s, branches, doublesided, zmin, zmax, ymin, ymax, psi, phi_rot, mValue);
+	// TODO Test user input for illegal values
 }
-#line 8025 "./test.c"
+#line 8284 "./test.c"
 #undef placeholder
+#undef doublesided
 #undef branches
+#undef mValue
 #undef max_iterations
 #undef precision
+#undef phi_rot
 #undef psi
-#undef zend
-#undef zstart
+#undef ymax
+#undef ymin
+#undef zmax
+#undef zmin
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -8052,7 +8316,7 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
 #define xwidth mccpsd_monitor_xwidth
 #define yheight mccpsd_monitor_yheight
 #define restore_neutron mccpsd_monitor_restore_neutron
-#line 68 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 68 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
 {
   if (xwidth  > 0) { xmax = xwidth/2;  xmin = -xmax; }
   if (yheight > 0) { ymax = yheight/2; ymin = -ymax; }
@@ -8077,7 +8341,7 @@ sigmah = DEG2RAD*focus_aw/(sqrt(8.0*log(2.0)));
     }
   }
 }
-#line 8080 "./test.c"
+#line 8344 "./test.c"
 #undef restore_neutron
 #undef yheight
 #undef xwidth
@@ -8204,7 +8468,7 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 70 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 70 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   double ncount;
   ncount = mcget_run_num();
@@ -8248,7 +8512,7 @@ MCNUM minutes = mccorigin_minutes;
     if (flag_save) mcsave(NULL);
   }
 }
-#line 8251 "./test.c"
+#line 8515 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8481,7 +8745,7 @@ MCNUM lambda0 = mccsource_div_lambda0;
 MCNUM dlambda = mccsource_div_dlambda;
 MCNUM gauss = mccsource_div_gauss;
 MCNUM flux = mccsource_div_flux;
-#line 118 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 118 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 {
   double E,lambda,v;
 
@@ -8529,7 +8793,7 @@ MCNUM flux = mccsource_div_flux;
   vy = tan_v * vz;
   vx = tan_h * vz;
 }
-#line 8532 "./test.c"
+#line 8796 "./test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -8645,43 +8909,39 @@ mcnlp)
 #define mccompcurtype  LogSpiral
 #define mccompcurindex 4
 {   /* Declarations of logspir=LogSpiral() SETTING parameters. */
-MCNUM zstart = mcclogspir_zstart;
-MCNUM zend = mcclogspir_zend;
+MCNUM zmin = mcclogspir_zmin;
+MCNUM zmax = mcclogspir_zmax;
+MCNUM ymin = mcclogspir_ymin;
+MCNUM ymax = mcclogspir_ymax;
 MCNUM psi = mcclogspir_psi;
+MCNUM phi_rot = mcclogspir_phi_rot;
 MCNUM precision = mcclogspir_precision;
 MCNUM max_iterations = mcclogspir_max_iterations;
+MCNUM mValue = mcclogspir_mValue;
 MCNUM branches = mcclogspir_branches;
+MCNUM doublesided = mcclogspir_doublesided;
 MCNUM placeholder = mcclogspir_placeholder;
-#line 371 "LogSpiral.comp"
+#line 603 "LogSpiral.comp"
 {
-  part_log n;
-
-  part_log *ptrn;
-  ptrn = &n;
-  //PROP_Z0;this not needed to allow neutrons from the other side to hit the logspiral
-  //printf("\n z=%f y=%f x=%f vz=%f vy=%f vx=%f \n", z, y, x, vz, vy, vx);
-  n = Neutron2Dinit(ptrn, z, y, x, vz, vy, vx);//puts all of the neutron info into the pointer ptrn pointing to n
-  for (int ii = 0; ii < 100; ii++){
-	  //propagate neutron to the next interaction
-	  interaction = evaluate_first_interaction(logspir, ptrn);
-	  //printf("ii %d , %d \n", ii, 0);
-	  //printf("after interaction z = %f, x = %f, vz = %f, vx = %f\n", returnz(n), returnx(n), returnvz(n), returnvx(n));
-	  if (interaction==0){
-		  break;
-	  }
-  }
-  z  = returnz(n);
-  vz = returnvz(n);
-  y  = returny(n);
-  vy = returnvy(n);
-  x  = returnx(n);
-  vx = returnvx(n);
-  //printf("\n z=%f y=%f x=%f vz=%f vy=%f vx=%f \n", z, y, x, vz, vy, vx);
-   //
-
-
+	part_log n;
+	// PROP_Z0;this must not be used to allow neutrons from the other side to hit the logspiral
+	// printf("\n z=%f y=%f x=%f vz=%f vy=%f vx=%f \n", z, y, x, vz, vy, vx);
+	n = Neutron2Dinit(&n, z, y, x, vz, vy, vx); // puts all of the neutron info into the pointer ptrn pointing to n
+	n.customsx = sx;
+	n.customsy = sy;
+	n.customsz = sz;
+	run_scene(s, &n, 10);
+	z = n.customz;
+	vz = n.customvz;
+	y = n.customy;
+	vy = n.customvy;
+	x = n.customx;
+	vx = n.customvx;
+	sx = n.customsx;
+	sy = n.customsy;
+	sz = n.customsz;
 }
-#line 8684 "./test.c"
+#line 8944 "./test.c"
 }   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
@@ -8800,7 +9060,7 @@ MCNUM ymax = mccpsd_monitor_ymax;
 MCNUM xwidth = mccpsd_monitor_xwidth;
 MCNUM yheight = mccpsd_monitor_yheight;
 MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
-#line 94 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 94 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
 {
   PROP_Z0;
   if (x>xmin && x<xmax && y>ymin && y<ymax){
@@ -8815,7 +9075,7 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
     RESTORE_NEUTRON(INDEX_CURRENT_COMP, x, y, z, vx, vy, vz, t, sx, sy, sz, p);
   }
 }
-#line 8818 "./test.c"
+#line 9078 "./test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -8910,7 +9170,7 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 115 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 115 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   MPI_MASTER(fprintf(stdout, "\nSave [%s]\n", mcinstrument_name););
   if (profile && strlen(profile) && strcmp(profile,"NULL") && strcmp(profile,"0")) {
@@ -8927,7 +9187,7 @@ MCNUM minutes = mccorigin_minutes;
 
   }
 }
-#line 8930 "./test.c"
+#line 9190 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -8956,7 +9216,7 @@ MCNUM ymax = mccpsd_monitor_ymax;
 MCNUM xwidth = mccpsd_monitor_xwidth;
 MCNUM yheight = mccpsd_monitor_yheight;
 MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
-#line 110 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 110 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
 {
   DETECTOR_OUT_2D(
     "PSD monitor",
@@ -8967,7 +9227,7 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
     &PSD_N[0][0],&PSD_p[0][0],&PSD_p2[0][0],
     filename);
 }
-#line 8970 "./test.c"
+#line 9230 "./test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -8997,7 +9257,7 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 133 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 133 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   time_t NowTime;
   time(&NowTime);
@@ -9010,7 +9270,7 @@ MCNUM minutes = mccorigin_minutes;
     fprintf(stdout, "%g [min] ", difftime(NowTime,StartTime)/60.0);
   fprintf(stdout, "\n");
 }
-#line 9013 "./test.c"
+#line 9273 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -9051,13 +9311,13 @@ MCNUM ymax = mccpsd_monitor_ymax;
 MCNUM xwidth = mccpsd_monitor_xwidth;
 MCNUM yheight = mccpsd_monitor_yheight;
 MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
-#line 122 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 122 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
 {
   destroy_darr2d(PSD_N);
   destroy_darr2d(PSD_p);
   destroy_darr2d(PSD_p2);
 }
-#line 9056 "./test.c"
+#line 9316 "./test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p
@@ -9099,11 +9359,11 @@ char* profile = mccorigin_profile;
 MCNUM percent = mccorigin_percent;
 MCNUM flag_save = mccorigin_flag_save;
 MCNUM minutes = mccorigin_minutes;
-#line 147 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
+#line 147 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../misc/Progress_bar.comp"
 {
   
 }
-#line 9101 "./test.c"
+#line 9361 "./test.c"
 }   /* End of origin=Progress_bar() SETTING parameter declarations. */
 #undef CurrentTime
 #undef EndTime
@@ -9119,7 +9379,7 @@ MCNUM minutes = mccorigin_minutes;
 #define mccompcurname  source
 #define mccompcurtype  Arm
 #define mccompcurindex 2
-#line 40 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../optics/Arm.comp"
+#line 40 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../optics/Arm.comp"
 {
   /* A bit ugly; hard-coded dimensions. */
   
@@ -9127,7 +9387,7 @@ MCNUM minutes = mccorigin_minutes;
   line(0,0,0,0,0.2,0);
   line(0,0,0,0,0,0.2);
 }
-#line 9125 "./test.c"
+#line 9385 "./test.c"
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -9159,7 +9419,7 @@ MCNUM lambda0 = mccsource_div_lambda0;
 MCNUM dlambda = mccsource_div_dlambda;
 MCNUM gauss = mccsource_div_gauss;
 MCNUM flux = mccsource_div_flux;
-#line 167 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
+#line 167 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../sources/Source_div.comp"
 {
   
   multiline(5, -xwidth/2.0, -yheight/2.0, 0.0,
@@ -9174,7 +9434,7 @@ MCNUM flux = mccsource_div_flux;
     dashed_line(0,0,0, -focus_xw/2, focus_yh/2,dist, 4);
   }
 }
-#line 9172 "./test.c"
+#line 9432 "./test.c"
 }   /* End of source_div=Source_div() SETTING parameter declarations. */
 #undef focus_yh
 #undef focus_xw
@@ -9186,31 +9446,6 @@ MCNUM flux = mccsource_div_flux;
 #undef sigmah
 #undef thetav
 #undef thetah
-#undef mccompcurname
-#undef mccompcurtype
-#undef mccompcurindex
-
-  /* MCDISPLAY code for component 'logspir'. */
-  SIG_MESSAGE("logspir (McDisplay)");
-  printf("MCDISPLAY: component %s\n", "logspir");
-#define mccompcurname  logspir
-#define mccompcurtype  LogSpiral
-#define mccompcurindex 4
-{   /* Declarations of logspir=LogSpiral() SETTING parameters. */
-MCNUM zstart = mcclogspir_zstart;
-MCNUM zend = mcclogspir_zend;
-MCNUM psi = mcclogspir_psi;
-MCNUM precision = mcclogspir_precision;
-MCNUM max_iterations = mcclogspir_max_iterations;
-MCNUM branches = mcclogspir_branches;
-MCNUM placeholder = mcclogspir_placeholder;
-#line 406 "LogSpiral.comp"
-{
-
-
-}
-#line 9207 "./test.c"
-}   /* End of logspir=LogSpiral() SETTING parameter declarations. */
 #undef mccompcurname
 #undef mccompcurtype
 #undef mccompcurindex
@@ -9235,7 +9470,7 @@ MCNUM ymax = mccpsd_monitor_ymax;
 MCNUM xwidth = mccpsd_monitor_xwidth;
 MCNUM yheight = mccpsd_monitor_yheight;
 MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
-#line 129 "/usr/share/mcstas/2.6.1/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
+#line 129 "/usr/share/mcstas/2.7/tools/Python/mcrun/../mccodelib/../../../monitors/PSD_monitor.comp"
 {
   multiline(5,
     (double)xmin, (double)ymin, 0.0,
@@ -9244,7 +9479,7 @@ MCNUM restore_neutron = mccpsd_monitor_restore_neutron;
     (double)xmin, (double)ymax, 0.0,
     (double)xmin, (double)ymin, 0.0);
 }
-#line 9242 "./test.c"
+#line 9477 "./test.c"
 }   /* End of psd_monitor=PSD_monitor() SETTING parameter declarations. */
 #undef PSD_p2
 #undef PSD_p

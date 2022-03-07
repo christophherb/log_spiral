@@ -70,7 +70,19 @@ ROTATED (0, 0, 0) RELATIVE source
 
 
 //Group of logspirs, first to hit is first to interact
-COMPONENT logspir = LogSpiral(zstart=1, zend=3, psi=5, branches=branches)
+COMPONENT logspir = LogSpiral(
+    zmin=1,
+    zmax=3,
+	ymin=-3,
+	ymax= 3,
+    psi=5,
+	phi_rot=0,
+    precision=1e-7,
+	max_iterations=10,
+	mValue = 10,
+	branches = 5,
+	doublesided = 1,
+    placeholder=0)
 AT (0, 0, 0) RELATIVE source
 ROTATED (0, 0, 0) RELATIVE source
 
