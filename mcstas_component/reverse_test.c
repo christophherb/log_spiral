@@ -2,7 +2,7 @@
  * Format:     ANSI C source code
  * Creator:    McStas <http://www.mcstas.org>
  * Instrument: reverse_test.instr (logspir_test)
- * Date:       Mon Mar  7 16:56:52 2022
+ * Date:       Wed Mar  9 09:40:49 2022
  * File:       ./reverse_test.c
  * Compile:    cc -o logspir_test.out ./reverse_test.c 
  * CFLAGS=
