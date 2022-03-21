@@ -87,7 +87,7 @@ class McstasSimulation:
             output (bool, optional):
             whether command line output shall be captured. Defaults to False.
 
-        Returns:
+        Returns:    
             [type]: [description]
         """
         if self.new_compile:
@@ -96,7 +96,10 @@ class McstasSimulation:
             mcstring += ' -n {}'.format(self.num_neutrons)
         print(mcstring)
         command = mcstring.split()
-        sim = subprocess.run(command, cwd=self.folder, capture_output=output)
+        if output == False:    
+            sim = subprocess.run(command, cwd=self.folder, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            sim = subprocess.run(command, cwd=self.folder)
         return sim
 
 

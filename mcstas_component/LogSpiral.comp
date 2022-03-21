@@ -57,7 +57,7 @@ SHARE
 %{
 %include "ref-lib"
 
-#define NUMBERMIRROR 20
+#define NUMBERMIRROR 50
 #define V2Q_conic 1.58825361e-3
 #define Q2V_conic 629.622368
 #define DEG2RAD 3.1415927 / 180

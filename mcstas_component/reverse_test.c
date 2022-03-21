@@ -2,7 +2,7 @@
  * Format:     ANSI C source code
  * Creator:    McStas <http://www.mcstas.org>
  * Instrument: reverse_test.instr (logspir_test)
- * Date:       Thu Mar 10 10:18:10 2022
+ * Date:       Mon Mar 14 11:10:22 2022
  * File:       ./reverse_test.c
  * Compile:    cc -o logspir_test.out ./reverse_test.c 
  * CFLAGS=
@@ -8861,7 +8861,7 @@ void TableReflecFunc(double mc_pol_q, t_Table *mc_pol_par, double *mc_pol_r) {
 /* end of ref-lib.c */
 
 
-#define NUMBERMIRROR 20
+#define NUMBERMIRROR 50
 #define V2Q_conic 1.58825361e-3
 #define Q2V_conic 629.622368
 #define DEG2RAD 3.1415927 / 180

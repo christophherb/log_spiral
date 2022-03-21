@@ -1,0 +1,107 @@
+McStas simulation description file for logspir_test.
+Date:    Thu Mar 17 14:41:09 2022
+Program: McStas 2.7 - Nov. 27, 2020
+
+begin instrument: logspir_test
+  File: reverse_test_20220317_144109/mccode
+  Source: reverse_test.instr
+  Parameters:  source_width(double) source_divergence(double) L_source(double) dL(double) flux(double) zmin(double) zmax(double) ymin(double) ymax(double) psi(double) phi_rot(double) precision(double) max_iterations(double) mValue(double) branches(double) doublesided(double) placeholder(double)
+  Trace_enabled: yes
+  Default_main: yes
+  Embedded_runtime: yes
+end instrument
+
+begin simulation: reverse_test_20220317_144109
+  Format: McCode with text headers
+  URL: http://www.mccode.org
+  Creator: McStas 2.7 - Nov. 27, 2020
+  Instrument: reverse_test.instr
+  Ncount: 100000
+  Trace: no
+  Gravitation: no
+  Seed: 1647542324
+  Directory: reverse_test_20220317_144109
+  Param: source_width=0.0005
+  Param: source_divergence=3.71164
+  Param: L_source=5
+  Param: dL=0
+  Param: flux=1
+  Param: zmin=0.175
+  Param: zmax=0.275
+  Param: ymin=-1
+  Param: ymax=1
+  Param: psi=1
+  Param: phi_rot=0.00205139
+  Param: precision=1e-07
+  Param: max_iterations=10
+  Param: mValue=6.2
+  Param: branches=18
+  Param: doublesided=1
+  Param: placeholder=0
+end simulation
+
+begin data
+  Date: Thu Mar 17 14:41:14 2022 (1647524474)
+  type: array_2d(500, 500)
+  Source: logspir_test (reverse_test.instr)
+  component: psd_before_optic
+  position: 0 0 0.615
+  title: PSD monitor
+  Ncount: 100000
+  filename: beforeoptic.dat
+  statistics: X0=-0.00320611; dX=1.14233; Y0=0.00223884; dY=0.691831;
+  signal: Min=0; Max=0.0679735; Mean=5.38621e-05;
+  values: 13.4655 0.0427428 99248
+  xvar: X
+  yvar: Y
+  xlabel: X position [cm]
+  ylabel: Y position [cm]
+  zvar: I
+  zlabel: Signal per bin
+  xylimits: -50 50 -50 50
+  variables: I I_err N
+end data
+
+begin data
+  Date: Thu Mar 17 14:41:14 2022 (1647524474)
+  type: array_2d(1001, 1001)
+  Source: logspir_test (reverse_test.instr)
+  component: psd_monitor_beforelog
+  position: 0 0 0.7351
+  title: PSD monitor
+  Ncount: 100000
+  filename: psdbeforelog.dat
+  statistics: X0=-0.00437721; dX=1.12583; Y0=0.00167145; dY=0.694293;
+  signal: Min=0; Max=0.00596973; Mean=1.30782e-05;
+  values: 13.1044 0.0421657 96586
+  xvar: X
+  yvar: Y
+  xlabel: X position [cm]
+  ylabel: Y position [cm]
+  zvar: I
+  zlabel: Signal per bin
+  xylimits: -25 25 -25 25
+  variables: I I_err N
+end data
+
+begin data
+  Date: Thu Mar 17 14:41:15 2022 (1647524475)
+  type: array_2d(1001, 1001)
+  Source: logspir_test (reverse_test.instr)
+  component: psd_monitor
+  position: 0 0 1.35
+  title: PSD monitor
+  Ncount: 100000
+  filename: psdafterlog.dat
+  statistics: X0=-0.000247021; dX=0.685726; Y0=0.00196461; dY=0.69455;
+  signal: Min=0; Max=0.000814054; Mean=1.24708e-05;
+  values: 12.4957 0.0411748 92100
+  xvar: X
+  yvar: Y
+  xlabel: X position [cm]
+  ylabel: Y position [cm]
+  zvar: I
+  zlabel: Signal per bin
+  xylimits: -1.3 1.3 -1.3 1.3
+  variables: I I_err N
+end data

@@ -4,22 +4,36 @@ import matplotlib.pyplot as plt
 plt.style.use("/home/cherb/LRZSync/Doktorarbeit/Vorlagen_Verschiedenes/stylelibs/christoph.mplstyle")
 from random import normalvariate, uniform
 p=1
+test_log = LogSpir(0.15+0.025, 0.3-0.025, 1.0, 6, precision=1e-8, phi_rot=0)
+
 if p:
-    log = LogSpir(0.15, 0.3, 1.0, 6, precision=1e-8, phi_rot=0)
+    log = LogSpir(0.15+0.025, 0.3-0.025, 1.0, 6, precision=1e-8, phi_rot=test_log.theta_end*0.5)
+    log.branches = 3 
+    while True:
+        angle = (log.branches-1)*log.phi_rot+log.theta_end
+        height = np.sin(angle)*log.zend
+
+        print(angle*180/np.pi, height)
+        print(height/log.zend < 0.023/(0.675-0.06))
+        if height/log.zend < 0.023/(0.675-0.06):
+            log.branches += 3
+        else:
+            break
+    print(log.branches, height/log.zend, 0.02/(0.675-0.06))
     log.double_sided = 1
     log.m = 6.2
     print(log.theta_end)
     fig, ax = plt.subplots(1, figsize=(7, 7))
     v0 = 791
     theta_end = log.theta_end
-    theta_range = np.linspace(0, theta_end, 10001)
+    theta_range = np.linspace(0, theta_end, 501)
     z, x = log.return_cart_coords(theta_range)
     hist = []
-    for slope in np.linspace(-0.0324, 0.0324, 5001):
+    for slope in np.linspace(-0.0324, 0.0324, 101):
         z0 = 0.675-0.06
         vz = -1
         vx = -slope
-        x0 = slope*z0+(uniform(-0.5, 0.5))*0.002
+        x0 = slope*z0#+(uniform(-0.5, 0.5))*0.002
         vz, vx = v0*vz/(vx**2+vz**2)**0.5, v0*vx/(vx**2+vz**2)**0.5
         neutron = Neutron(z0, x0, vz, vx)
         path, neutron = log.propagate_neutron(neutron)
@@ -51,7 +65,7 @@ if p:
         #the initial mirror
     ax.set_xlabel("$z$ (m)")
     ax.set_ylabel("$x$ (m)")
-    ax.set_title(r"$r = z_s \exp(\cotan(\psi)\theta)$  mit $z_s = {}$ m, $z_e = {}$ m, $\psi={}^\circ$".format(log.zstart, log.zend, log.psi))
+    ax.set_title(r"$r = z_s \exp(\cotan(\psi)\theta)$  mit $z_s = {:.3}$ m, $z_e = {:.3}$ m, $\psi={}^\circ$".format(log.zstart, log.zend, log.psi))
     ax.legend()
     fig.savefig('/home/cherb/Downloads/sensible_size_divergence.pdf', bbox_inches='tight')
     plt.show()
@@ -65,7 +79,7 @@ if p:
     plt.show()
 p=0
 if p:
-    log = LogSpir(0.15, 0.3, 1.55, 6, precision=1e-8)
+    log = LogSpir(0.175, 0.275, 1.55, 6, precision=1e-8)
     log.double_sided = 0
     print(log.theta_end)
     fig, ax = plt.subplots(1, figsize=(7, 7))

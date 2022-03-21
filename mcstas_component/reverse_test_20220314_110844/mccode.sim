@@ -1,0 +1,11 @@
+McStas simulation description file for logspir_test.
+Date:    Mon Mar 14 11:08:44 2022
+Program: McStas 2.7 - Nov. 27, 2020
+
+begin instrument: logspir_test
+  File: reverse_test_20220314_110844/mccode
+  Source: reverse_test.instr
+  Parameters:  source_width(double) source_divergence(double) L_source(double) dL(double) flux(double) zmin(double) zmax(double) ymin(double) ymax(double) psi(double) phi_rot(double) precision(double) max_iterations(double) mValue(double) branches(double) doublesided(double) placeholder(double)
+  Trace_enabled: yes
+  Default_main: yes
+  Embedded_runtime: yes
