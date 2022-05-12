@@ -102,7 +102,7 @@ class LogSpir:
         self.psi_rad = psi*deg2rad
         self.k = 1/np.tan(self.psi_rad) #helper variable showing in the formula
         self.precision=precision
-        self.m = 6.2
+        self.m = 5# changed the mvalue to a cheaper solution
         #function and derivative are used to find the angle theta at which the z_value of the spiral equals zend
         self.function = lambda theta: np.cos(theta)*self.zstart*np.exp(self.k*theta)-self.zend
         self.derivative = lambda theta: self.zstart*np.exp(self.k*theta)*(np.cos(theta)*self.k-np.sin(theta))

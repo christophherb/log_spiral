@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 plt.style.use("/home/cherb/LRZSync/Doktorarbeit/Vorlagen_Verschiedenes/stylelibs/christoph.mplstyle")
 from random import normalvariate, uniform
 p=1
-test_log = LogSpir(0.15+0.025, 0.3-0.025, 1.0, 6, precision=1e-8, phi_rot=0)
+test_log = LogSpir(0.15+0.025, 0.3-0.025, 1.45, 6, precision=1e-8, phi_rot=0)
 
 if p:
-    log = LogSpir(0.15+0.025, 0.3-0.025, 1.0, 6, precision=1e-8, phi_rot=test_log.theta_end*0.5)
-    log.branches = 3 
+    log = LogSpir(0.15+0.025, 0.3-0.025, 1.45, 6, precision=1e-8, phi_rot=test_log.theta_end*0.35)
+    log.branches = 3
     while True:
         angle = (log.branches-1)*log.phi_rot+log.theta_end
         height = np.sin(angle)*log.zend
@@ -24,7 +24,7 @@ if p:
     log.m = 6.2
     print(log.theta_end)
     fig, ax = plt.subplots(1, figsize=(7, 7))
-    v0 = 791
+    v0 = 980
     theta_end = log.theta_end
     theta_range = np.linspace(0, theta_end, 501)
     z, x = log.return_cart_coords(theta_range)
